@@ -1,0 +1,67 @@
+name: Release Artifact
+
+# Publishes the Chronary Go SDK source to chronary-go and creates a GitHub Release.
+#
+# Go modules resolve directly from GitHub — there is no registry publish step.
+# Once a tag vX.Y.Z exists on a public repo, users run:
+#   go install github.com/Chronary/chronary-go@vX.Y.Z
+# proxy.golang.org will cache the module automatically.
+#
+# While chronary-go is PRIVATE, go install requires GOPRIVATE + GitHub auth.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Validate release manifest
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          manifest = json.load(open(".chronary-release.json", "r", encoding="utf-8"))
+          if manifest["artifact"] != "go-sdk":
+              raise SystemExit("Expected artifact go-sdk")
+          if manifest["public_tag"] != os.environ["GITHUB_REF_NAME"]:
+              raise SystemExit("Tag mismatch between manifest and workflow ref")
+          PY
+          test -f RELEASE_NOTES.txt
+
+      - name: Validate package contents
+        run: |
+          test -f README.md
+          test -f LICENSE
+          test -f CHANGELOG.md
+          test -f go.mod
+          test -f VERSION
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...
+
+      - name: Create GitHub Release
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "chronary-go ${GITHUB_REF_NAME}" \
+            --notes-file RELEASE_NOTES.txt

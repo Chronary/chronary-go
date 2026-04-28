@@ -64,7 +64,9 @@ func (c *Client) do(ctx context.Context, method, path string, body interface{}, 
 		}
 
 		// Headers
-		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+		if c.apiKey != "" {
+			req.Header.Set("Authorization", "Bearer "+c.apiKey)
+		}
 		req.Header.Set("User-Agent", "chronary-go/"+Version)
 		req.Header.Set("X-Chronary-SDK-Version", Version)
 		if body != nil {

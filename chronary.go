@@ -20,12 +20,18 @@ const (
 // Client is the Chronary API client. Access resources via the service fields.
 type Client struct {
 	Agents            *AgentService
+	AgentAuth         *AgentAuthService
 	Calendars         *CalendarService
 	Events            *EventService
 	Availability      *AvailabilityService
 	Webhooks          *WebhookService
 	ICalSubscriptions *ICalSubscriptionService
 	Usage             *UsageService
+	Scheduling        *SchedulingService
+	Keys              *KeysService
+	Feedback          *FeedbackService
+	Plans             *PlansService
+	Account           *AccountService
 
 	apiKey     string
 	baseURL    string
@@ -35,7 +41,10 @@ type Client struct {
 }
 
 // NewClient creates a new Chronary API client.
+//
 // If no API key is provided via WithAPIKey, it reads from CHRONARY_API_KEY env var.
+// To construct a client for unauthenticated endpoints (AgentAuth.SignUp, Plans.List),
+// pass WithAnonymous() — the API key check is then skipped.
 func NewClient(opts ...ClientOption) (*Client, error) {
 	cfg := clientConfig{
 		baseURL:    DefaultBaseURL,
@@ -46,11 +55,11 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 		opt(&cfg)
 	}
 
-	if cfg.apiKey == "" {
+	if cfg.apiKey == "" && !cfg.anonymous {
 		cfg.apiKey = os.Getenv("CHRONARY_API_KEY")
 	}
-	if cfg.apiKey == "" {
-		return nil, fmt.Errorf("chronary: API key is required (set CHRONARY_API_KEY or use WithAPIKey)")
+	if cfg.apiKey == "" && !cfg.anonymous {
+		return nil, fmt.Errorf("chronary: API key is required (set CHRONARY_API_KEY, use WithAPIKey, or WithAnonymous for sign-up/plans)")
 	}
 
 	c := &Client{
@@ -66,12 +75,18 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 
 	s := service{client: c}
 	c.Agents = &AgentService{s}
+	c.AgentAuth = &AgentAuthService{s}
 	c.Calendars = &CalendarService{s}
 	c.Events = &EventService{s}
 	c.Availability = &AvailabilityService{s}
 	c.Webhooks = &WebhookService{s}
 	c.ICalSubscriptions = &ICalSubscriptionService{s}
 	c.Usage = &UsageService{s}
+	c.Scheduling = &SchedulingService{s}
+	c.Keys = &KeysService{s}
+	c.Feedback = &FeedbackService{s}
+	c.Plans = &PlansService{s}
+	c.Account = &AccountService{s}
 
 	return c, nil
 }

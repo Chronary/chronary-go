@@ -70,3 +70,42 @@ func (s *CalendarService) Update(ctx context.Context, id string, params *UpdateC
 func (s *CalendarService) Delete(ctx context.Context, id string, opts ...RequestOption) error {
 	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/calendars/%s", id), nil, opts...)
 }
+
+// GetContext returns a live snapshot of the calendar — current event, next event,
+// recent and upcoming events, plus a derived agent live-status.
+func (s *CalendarService) GetContext(ctx context.Context, id string, opts ...RequestOption) (*CalendarContext, error) {
+	var ctxResp CalendarContext
+	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/calendars/%s/context", id), nil, &ctxResp, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &ctxResp, nil
+}
+
+// SetAvailabilityRules upserts the booking rules for a calendar. Existing rules
+// are fully replaced by the provided values.
+func (s *CalendarService) SetAvailabilityRules(ctx context.Context, id string, params *SetAvailabilityRulesParams, opts ...RequestOption) (*AvailabilityRules, error) {
+	var rules AvailabilityRules
+	err := s.client.do(ctx, http.MethodPut, fmt.Sprintf("/v1/calendars/%s/availability-rules", id), params, &rules, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &rules, nil
+}
+
+// GetAvailabilityRules returns the booking rules attached to a calendar.
+// Returns 404 when no rules have been configured.
+func (s *CalendarService) GetAvailabilityRules(ctx context.Context, id string, opts ...RequestOption) (*AvailabilityRules, error) {
+	var rules AvailabilityRules
+	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/calendars/%s/availability-rules", id), nil, &rules, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &rules, nil
+}
+
+// DeleteAvailabilityRules clears the booking rules for a calendar.
+// Returns 404 when no rules have been configured.
+func (s *CalendarService) DeleteAvailabilityRules(ctx context.Context, id string, opts ...RequestOption) error {
+	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/calendars/%s/availability-rules", id), nil, opts...)
+}

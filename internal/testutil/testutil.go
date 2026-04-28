@@ -13,8 +13,7 @@ import (
 // Setup creates an httptest.Server and a configured Client pointing at it.
 func Setup(t *testing.T, handler http.Handler) (*chronary.Client, *httptest.Server) {
 	t.Helper()
-	srv := httptest.NewServer(handler)
-	t.Cleanup(srv.Close)
+	srv := SetupRaw(t, handler)
 
 	client, err := chronary.NewClient(
 		chronary.WithAPIKey("test_key"),
@@ -25,6 +24,15 @@ func Setup(t *testing.T, handler http.Handler) (*chronary.Client, *httptest.Serv
 		t.Fatal(err)
 	}
 	return client, srv
+}
+
+// SetupRaw creates an httptest.Server without constructing a client. Useful for
+// tests that need to construct an anonymous (no-API-key) client themselves.
+func SetupRaw(t *testing.T, handler http.Handler) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+	return srv
 }
 
 // RespondJSON writes a JSON response with the given status code.

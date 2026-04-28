@@ -10,6 +10,7 @@ type ClientOption func(*clientConfig)
 
 type clientConfig struct {
 	apiKey     string
+	anonymous  bool
 	baseURL    string
 	httpClient *http.Client
 	timeout    time.Duration
@@ -19,6 +20,13 @@ type clientConfig struct {
 // WithAPIKey sets the API key for authentication.
 func WithAPIKey(key string) ClientOption {
 	return func(c *clientConfig) { c.apiKey = key }
+}
+
+// WithAnonymous constructs a client with no API key. Only the unauthenticated
+// endpoints work on such a client — currently AgentAuth.SignUp and Plans.List.
+// Authenticated calls return a 401 from the API.
+func WithAnonymous() ClientOption {
+	return func(c *clientConfig) { c.anonymous = true }
 }
 
 // WithBaseURL sets the base URL for the API (default: https://api.chronary.ai).

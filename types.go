@@ -323,3 +323,348 @@ type WebhookEvent struct {
 	Type string                 `json:"type"`
 	Data map[string]interface{} `json:"data"`
 }
+
+// --- Calendar context ---
+
+// AgentLiveStatus is the live-status field returned by GET /v1/calendars/{id}/context.
+type AgentLiveStatus string
+
+const (
+	AgentLiveStatusIdle    AgentLiveStatus = "idle"
+	AgentLiveStatusWorking AgentLiveStatus = "working"
+	AgentLiveStatusWaiting AgentLiveStatus = "waiting"
+	AgentLiveStatusError   AgentLiveStatus = "error"
+)
+
+// CalendarContext is the snapshot returned by GET /v1/calendars/{id}/context.
+type CalendarContext struct {
+	CalendarID    string          `json:"calendar_id"`
+	Now           string          `json:"now"`
+	AgentStatus   AgentLiveStatus `json:"agent_status"`
+	CurrentEvent  *Event          `json:"current_event"`
+	NextEvent     *Event          `json:"next_event"`
+	RecentEvents  []Event         `json:"recent_events"`
+	Upcoming      []Event         `json:"upcoming"`
+}
+
+// --- Availability rules ---
+
+// WorkingHoursDay describes the working window for a single weekday.
+type WorkingHoursDay struct {
+	Start string `json:"start"`
+	End   string `json:"end"`
+}
+
+// WorkingHours is a per-weekday map of working windows. Days that are absent are days off.
+type WorkingHours struct {
+	Mon *WorkingHoursDay `json:"mon,omitempty"`
+	Tue *WorkingHoursDay `json:"tue,omitempty"`
+	Wed *WorkingHoursDay `json:"wed,omitempty"`
+	Thu *WorkingHoursDay `json:"thu,omitempty"`
+	Fri *WorkingHoursDay `json:"fri,omitempty"`
+	Sat *WorkingHoursDay `json:"sat,omitempty"`
+	Sun *WorkingHoursDay `json:"sun,omitempty"`
+}
+
+// AvailabilityRules are the booking rules attached to a calendar.
+type AvailabilityRules struct {
+	ID                  string        `json:"id"`
+	CalendarID          string        `json:"calendar_id"`
+	BufferBeforeMinutes int           `json:"buffer_before_minutes"`
+	BufferAfterMinutes  int           `json:"buffer_after_minutes"`
+	WorkingHours        *WorkingHours `json:"working_hours"`
+	Timezone            string        `json:"timezone"`
+	CreatedAt           time.Time     `json:"created_at"`
+	UpdatedAt           time.Time     `json:"updated_at"`
+}
+
+// SetAvailabilityRulesParams are the parameters for upserting availability rules.
+type SetAvailabilityRulesParams struct {
+	BufferBeforeMinutes *int          `json:"buffer_before_minutes,omitempty"`
+	BufferAfterMinutes  *int          `json:"buffer_after_minutes,omitempty"`
+	WorkingHours        *WorkingHours `json:"working_hours,omitempty"`
+	Timezone            *string       `json:"timezone,omitempty"`
+}
+
+// --- Webhook deliveries ---
+
+// WebhookDeliveryStatus is the delivery state of a webhook attempt.
+type WebhookDeliveryStatus string
+
+const (
+	WebhookDeliveryPending   WebhookDeliveryStatus = "pending"
+	WebhookDeliveryDelivered WebhookDeliveryStatus = "delivered"
+	WebhookDeliveryFailed    WebhookDeliveryStatus = "failed"
+)
+
+// WebhookDelivery is a single delivery attempt for a webhook subscription.
+type WebhookDelivery struct {
+	ID             string                 `json:"id"`
+	SubscriptionID string                 `json:"subscription_id"`
+	EventType      string                 `json:"event_type"`
+	Status         WebhookDeliveryStatus  `json:"status"`
+	Attempts       int                    `json:"attempts"`
+	LastAttemptAt  *string                `json:"last_attempt_at"`
+	NextRetryAt    *string                `json:"next_retry_at"`
+	CreatedAt      string                 `json:"created_at"`
+	Payload        map[string]interface{} `json:"payload,omitempty"`
+}
+
+// WebhookDeliveryStats is the rollup returned alongside a deliveries list.
+type WebhookDeliveryStats struct {
+	Pending   int `json:"pending"`
+	Delivered int `json:"delivered"`
+	Failed    int `json:"failed"`
+}
+
+// WebhookDeliveryListResponse is the response from listing webhook deliveries.
+type WebhookDeliveryListResponse struct {
+	Data   []WebhookDelivery    `json:"data"`
+	Total  int                  `json:"total"`
+	Limit  int                  `json:"limit"`
+	Offset int                  `json:"offset"`
+	Stats  WebhookDeliveryStats `json:"stats"`
+}
+
+// ListWebhookDeliveriesParams are query parameters for listing webhook deliveries.
+type ListWebhookDeliveriesParams struct {
+	Status         *WebhookDeliveryStatus `url:"status,omitempty"`
+	IncludePayload *bool                  `url:"include_payload,omitempty"`
+	Limit          int                    `url:"limit,omitempty"`
+	Offset         int                    `url:"offset,omitempty"`
+}
+
+// --- Scheduling proposals ---
+
+// ProposalStatus is the lifecycle state of a scheduling proposal.
+type ProposalStatus string
+
+const (
+	ProposalStatusPending   ProposalStatus = "pending"
+	ProposalStatusConfirmed ProposalStatus = "confirmed"
+	ProposalStatusExpired   ProposalStatus = "expired"
+	ProposalStatusCancelled ProposalStatus = "cancelled"
+)
+
+// ProposalResponseAction is a participant's response to a proposal.
+type ProposalResponseAction string
+
+const (
+	ProposalResponseAccept  ProposalResponseAction = "accept"
+	ProposalResponseDecline ProposalResponseAction = "decline"
+	ProposalResponseCounter ProposalResponseAction = "counter"
+)
+
+// ProposalSlot is a candidate time slot on a proposal.
+type ProposalSlot struct {
+	ID         string  `json:"id,omitempty"`
+	StartTime  string  `json:"start_time"`
+	EndTime    string  `json:"end_time"`
+	Weight     *int    `json:"weight,omitempty"`
+	CalendarID *string `json:"calendar_id,omitempty"`
+}
+
+// ProposalResponse is a participant's recorded response.
+type ProposalResponse struct {
+	ID             string                 `json:"id"`
+	AgentID        string                 `json:"agent_id"`
+	Response       ProposalResponseAction `json:"response"`
+	SelectedSlotID *string                `json:"selected_slot_id"`
+	CounterSlots   []ProposalSlot         `json:"counter_slots"`
+	Message        *string                `json:"message"`
+	CreatedAt      string                 `json:"created_at"`
+}
+
+// ProposalSummary is the listing-shape proposal (no slots/responses).
+type ProposalSummary struct {
+	ID                  string                 `json:"id"`
+	Title               string                 `json:"title"`
+	Description         *string                `json:"description"`
+	OrganizerAgentID    string                 `json:"organizer_agent_id"`
+	ParticipantAgentIDs []string               `json:"participant_agent_ids"`
+	CalendarID          string                 `json:"calendar_id"`
+	Status              ProposalStatus         `json:"status"`
+	IsTest              bool                   `json:"is_test"`
+	ExpiresAt           *string                `json:"expires_at"`
+	ResolvedSlot        *ProposalSlot          `json:"resolved_slot"`
+	CreatedEventID      *string                `json:"created_event_id"`
+	Metadata            map[string]interface{} `json:"metadata"`
+	CreatedAt           string                 `json:"created_at"`
+	UpdatedAt           string                 `json:"updated_at"`
+}
+
+// Proposal is the full proposal including slots and responses.
+type Proposal struct {
+	ProposalSummary
+	Slots     []ProposalSlot     `json:"slots"`
+	Responses []ProposalResponse `json:"responses"`
+}
+
+// CreateProposalParams are the parameters for creating a proposal.
+type CreateProposalParams struct {
+	Title               string                 `json:"title"`
+	Description         *string                `json:"description,omitempty"`
+	OrganizerAgentID    string                 `json:"organizer_agent_id"`
+	ParticipantAgentIDs []string               `json:"participant_agent_ids"`
+	CalendarID          string                 `json:"calendar_id"`
+	Slots               []ProposalSlot         `json:"slots"`
+	ExpiresAt           *string                `json:"expires_at,omitempty"`
+	Metadata            map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// RespondToProposalParams are the parameters for responding to a proposal.
+type RespondToProposalParams struct {
+	AgentID        string                 `json:"agent_id"`
+	Response       ProposalResponseAction `json:"response"`
+	SelectedSlotID *string                `json:"selected_slot_id,omitempty"`
+	CounterSlots   []ProposalSlot         `json:"counter_slots,omitempty"`
+	Message        *string                `json:"message,omitempty"`
+}
+
+// ListProposalsParams are query parameters for listing proposals.
+type ListProposalsParams struct {
+	Status           *ProposalStatus `url:"status,omitempty"`
+	OrganizerAgentID *string         `url:"organizer_agent_id,omitempty"`
+	Limit            int             `url:"limit,omitempty"`
+	Offset           int             `url:"offset,omitempty"`
+}
+
+// ResolveProposalResponse is the response from POST /scheduling/proposals/:id/resolve.
+// Status is either "confirmed" (with ResolvedSlot) or "cancelled" (with Reason).
+type ResolveProposalResponse struct {
+	Status       ProposalStatus `json:"status"`
+	ResolvedSlot *ProposalSlot  `json:"resolved_slot,omitempty"`
+	Reason       string         `json:"reason,omitempty"`
+}
+
+// CancelProposalResponse is the response from POST /scheduling/proposals/:id/cancel.
+type CancelProposalResponse struct {
+	Status ProposalStatus `json:"status"`
+}
+
+// --- Scoped API keys ---
+
+// KeyMode distinguishes live vs test mode for scoped API keys.
+type KeyMode string
+
+const (
+	KeyModeLive KeyMode = "live"
+	KeyModeTest KeyMode = "test"
+)
+
+// ScopedAPIKey is an agent-scoped API key (no secret material — listing shape).
+type ScopedAPIKey struct {
+	ID        string  `json:"id"`
+	Mode      KeyMode `json:"mode"`
+	KeyPrefix string  `json:"key_prefix"`
+	AgentID   string  `json:"agent_id"`
+	Label     *string `json:"label"`
+	CreatedAt string  `json:"created_at"`
+}
+
+// CreatedScopedAPIKey is the response from POST /v1/keys; includes the full key string.
+// The full key is shown once at creation time only.
+type CreatedScopedAPIKey struct {
+	ScopedAPIKey
+	Key string `json:"key"`
+}
+
+// CreateScopedAPIKeyParams are the parameters for creating a scoped API key.
+type CreateScopedAPIKeyParams struct {
+	AgentID string  `json:"agent_id"`
+	Mode    KeyMode `json:"mode"`
+	Label   *string `json:"label,omitempty"`
+}
+
+// --- Plans (public catalog) ---
+
+// PlanLimits is the enforced caps for a plan tier.
+type PlanLimits struct {
+	Agents              *int `json:"agents"`
+	Calendars           *int `json:"calendars"`
+	Events              *int `json:"events"`
+	APICalls            *int `json:"api_calls"`
+	WebhookDeliveries   *int `json:"webhook_deliveries"`
+	AvailabilityQueries *int `json:"availability_queries"`
+	ICalSubscriptions   *int `json:"ical_subscriptions"`
+	Proposals           *int `json:"proposals"`
+}
+
+// Plan is a single tier in the public plan catalog.
+type Plan struct {
+	ID              string      `json:"id"`
+	Name            string      `json:"name"`
+	Tagline         string      `json:"tagline"`
+	Price           *int        `json:"price"`
+	Currency        *string     `json:"currency"`
+	Limits          *PlanLimits `json:"limits"`
+	DisplayFeatures []string    `json:"display_features"`
+	Recommended     bool        `json:"recommended"`
+	CustomPricing   bool        `json:"custom_pricing,omitempty"`
+	ContactURL      string      `json:"contact_url,omitempty"`
+}
+
+// PlansListResponse is the response from GET /v1/plans.
+type PlansListResponse struct {
+	Plans []Plan `json:"plans"`
+}
+
+// --- Agent signup / verify ---
+
+// AgentSignUpParams are the parameters for POST /v1/agent/sign-up.
+type AgentSignUpParams struct {
+	Email      string `json:"email"`
+	AgentName  string `json:"agent_name"`
+	TosVersion string `json:"tos_version"`
+}
+
+// AgentSignUpResponse is the response from POST /v1/agent/sign-up. Fields beyond
+// Message are populated only on the new-org branch; the existing-org dedup branch
+// returns just Message (no credentials, to block enumeration).
+type AgentSignUpResponse struct {
+	OrgID      string `json:"org_id,omitempty"`
+	AgentID    string `json:"agent_id,omitempty"`
+	APIKey     string `json:"api_key,omitempty"`
+	TestAPIKey string `json:"test_api_key,omitempty"`
+	Message    string `json:"message"`
+}
+
+// IsNewOrg returns true when the response contains credentials for a freshly
+// created org. Use this to narrow the response before reading APIKey.
+func (r *AgentSignUpResponse) IsNewOrg() bool {
+	return r != nil && r.APIKey != ""
+}
+
+// AgentVerifyParams are the parameters for POST /v1/agent/verify.
+type AgentVerifyParams struct {
+	OTP string `json:"otp"`
+}
+
+// AgentVerifyResponse is the response from POST /v1/agent/verify.
+type AgentVerifyResponse struct {
+	Verified bool   `json:"verified"`
+	Message  string `json:"message"`
+}
+
+// --- Feedback ---
+
+// FeedbackType categorizes a feedback submission.
+type FeedbackType string
+
+const (
+	FeedbackTypeBug      FeedbackType = "bug"
+	FeedbackTypeFeature  FeedbackType = "feature"
+	FeedbackTypeFriction FeedbackType = "friction"
+)
+
+// SubmitFeedbackParams are the parameters for POST /v1/feedback.
+type SubmitFeedbackParams struct {
+	Type    FeedbackType           `json:"type"`
+	Message string                 `json:"message"`
+	Context map[string]interface{} `json:"context,omitempty"`
+}
+
+// FeedbackAcceptedResponse is the response from POST /v1/feedback.
+type FeedbackAcceptedResponse struct {
+	Status string `json:"status"`
+}

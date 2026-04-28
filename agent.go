@@ -133,6 +133,10 @@ func paramLimit(params interface{}) int {
 		if p != nil {
 			return p.Limit
 		}
+	case *ListProposalsParams:
+		if p != nil {
+			return p.Limit
+		}
 	}
 	return 0
 }

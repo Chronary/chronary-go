@@ -21,10 +21,11 @@ func (s *EventService) Create(ctx context.Context, calendarID string, params *Cr
 	return &event, nil
 }
 
-// Get retrieves an event by ID.
-func (s *EventService) Get(ctx context.Context, id string, opts ...RequestOption) (*Event, error) {
+// Get retrieves an event by ID. Both calendar and event IDs are required because
+// the API mounts single-event reads under /v1/calendars/{cal_id}/events/{id}.
+func (s *EventService) Get(ctx context.Context, calendarID, eventID string, opts ...RequestOption) (*Event, error) {
 	var event Event
-	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/events/%s", id), nil, &event, opts...)
+	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/calendars/%s/events/%s", calendarID, eventID), nil, &event, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -60,9 +61,9 @@ func (s *EventService) List(ctx context.Context, params *ListEventsParams) *Page
 }
 
 // Update updates an event by ID.
-func (s *EventService) Update(ctx context.Context, id string, params *UpdateEventParams, opts ...RequestOption) (*Event, error) {
+func (s *EventService) Update(ctx context.Context, calendarID, eventID string, params *UpdateEventParams, opts ...RequestOption) (*Event, error) {
 	var event Event
-	err := s.client.do(ctx, http.MethodPatch, fmt.Sprintf("/v1/events/%s", id), params, &event, opts...)
+	err := s.client.do(ctx, http.MethodPatch, fmt.Sprintf("/v1/calendars/%s/events/%s", calendarID, eventID), params, &event, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -70,6 +71,28 @@ func (s *EventService) Update(ctx context.Context, id string, params *UpdateEven
 }
 
 // Delete deletes an event by ID.
-func (s *EventService) Delete(ctx context.Context, id string, opts ...RequestOption) error {
-	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/events/%s", id), nil, opts...)
+func (s *EventService) Delete(ctx context.Context, calendarID, eventID string, opts ...RequestOption) error {
+	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/calendars/%s/events/%s", calendarID, eventID), nil, opts...)
+}
+
+// Confirm promotes a held event (status="hold") to status="confirmed".
+// Returns 409 if the event is not a hold or the hold has expired.
+func (s *EventService) Confirm(ctx context.Context, eventID string, opts ...RequestOption) (*Event, error) {
+	var event Event
+	err := s.client.do(ctx, http.MethodPut, fmt.Sprintf("/v1/events/%s/confirm", eventID), nil, &event, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &event, nil
+}
+
+// Release manually releases a held event before its TTL expires, freeing the slot.
+// Returns 409 if the event is not a hold.
+func (s *EventService) Release(ctx context.Context, eventID string, opts ...RequestOption) (*Event, error) {
+	var event Event
+	err := s.client.do(ctx, http.MethodPut, fmt.Sprintf("/v1/events/%s/release", eventID), nil, &event, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &event, nil
 }

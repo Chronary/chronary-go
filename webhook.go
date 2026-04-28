@@ -60,3 +60,20 @@ func (s *WebhookService) Update(ctx context.Context, id string, params *UpdateWe
 func (s *WebhookService) Delete(ctx context.Context, id string, opts ...RequestOption) error {
 	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/webhooks/%s", id), nil, opts...)
 }
+
+// ListDeliveries returns a single page of delivery attempts for a webhook subscription,
+// along with rollup statistics. Use Limit/Offset on params to walk pages; the response
+// is not iterator-shaped because the rollup stats are tied to a specific page query.
+func (s *WebhookService) ListDeliveries(ctx context.Context, webhookID string, params *ListWebhookDeliveriesParams, opts ...RequestOption) (*WebhookDeliveryListResponse, error) {
+	q := addQueryParams(params)
+	var resp WebhookDeliveryListResponse
+	path := fmt.Sprintf("/v1/webhooks/%s/deliveries", webhookID)
+	if encoded := q.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	err := s.client.do(ctx, http.MethodGet, path, nil, &resp, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}

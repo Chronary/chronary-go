@@ -14,14 +14,14 @@ func TestNewClientRequiresAPIKey(t *testing.T) {
 }
 
 func TestNewClientFromEnv(t *testing.T) {
-	os.Setenv("CHRONARY_API_KEY", "chr_sk_test_env")
+	os.Setenv("CHRONARY_API_KEY", "chr_sk_env")
 	defer os.Unsetenv("CHRONARY_API_KEY")
 
 	c, err := NewClient()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.apiKey != "chr_sk_test_env" {
+	if c.apiKey != "chr_sk_env" {
 		t.Errorf("expected env key, got %s", c.apiKey)
 	}
 }

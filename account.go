@@ -17,23 +17,25 @@ type AccountService struct {
 // Sensitive fields (key hashes, password hashes, OTP hashes, claim revocation
 // tokens, internal scheduling state) are excluded server-side.
 type DataExport struct {
-	ExportedAt    string                 `json:"exported_at"`
-	FormatVersion string                 `json:"format_version"`
-	Org           DataExportOrg          `json:"org"`
-	Agents        []json.RawMessage      `json:"agents"`
-	Calendars     []json.RawMessage      `json:"calendars"`
-	Events        []json.RawMessage      `json:"events"`
-	AvailabilityRules     []json.RawMessage `json:"availability_rules"`
-	ICalSubscriptions     []json.RawMessage `json:"ical_subscriptions"`
-	WebhookSubscriptions  []json.RawMessage `json:"webhook_subscriptions"`
-	APIKeys              []json.RawMessage `json:"api_keys"`
-	SchedulingProposals  []json.RawMessage `json:"scheduling_proposals"`
-	ProposalSlots        []json.RawMessage `json:"proposal_slots"`
-	ProposalResponses    []json.RawMessage `json:"proposal_responses"`
-	UsageRecords         []json.RawMessage `json:"usage_records"`
-	QuotaCounters        []json.RawMessage `json:"quota_counters"`
-	TosAcceptances       []json.RawMessage `json:"tos_acceptances"`
-	AccountClaimsInitiated []json.RawMessage `json:"account_claims_initiated"`
+	ExportedAt                    string            `json:"exported_at"`
+	FormatVersion                 string            `json:"format_version"`
+	Org                           DataExportOrg     `json:"org"`
+	Agents                        []json.RawMessage `json:"agents"`
+	Calendars                     []json.RawMessage `json:"calendars"`
+	Events                        []json.RawMessage `json:"events"`
+	AvailabilityRules             []json.RawMessage `json:"availability_rules"`
+	ICalSubscriptions             []json.RawMessage `json:"ical_subscriptions"`
+	WebhookSubscriptions          []json.RawMessage `json:"webhook_subscriptions"`
+	APIKeys                       []json.RawMessage `json:"api_keys"`
+	SchedulingProposals           []json.RawMessage `json:"scheduling_proposals"`
+	ProposalSlots                 []json.RawMessage `json:"proposal_slots"`
+	ProposalResponses             []json.RawMessage `json:"proposal_responses"`
+	UsageRecords                  []json.RawMessage `json:"usage_records"`
+	QuotaCounters                 []json.RawMessage `json:"quota_counters"`
+	TosAcceptances                []json.RawMessage `json:"tos_acceptances"`
+	AccountClaimsInitiated        []json.RawMessage `json:"account_claims_initiated"`
+	AccountClaimsTargetingThisOrg []json.RawMessage `json:"account_claims_targeting_this_org"`
+	FeedbackSubmissions           []json.RawMessage `json:"feedback_submissions"`
 }
 
 // DataExportOrg is the org block at the top of the export payload.

@@ -62,6 +62,46 @@ func TestDoIdempotencyKeyOnPost(t *testing.T) {
 	}
 }
 
+func TestDoReusesAutoIdempotencyKeyOnRetry(t *testing.T) {
+	var attempts int32
+	var firstKey string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		key := r.Header.Get("Idempotency-Key")
+		if key == "" {
+			t.Error("POST should have Idempotency-Key header")
+		}
+		n := atomic.AddInt32(&attempts, 1)
+		if n == 1 {
+			firstKey = key
+			w.WriteHeader(500)
+			w.Write([]byte(`{"error":{"type":"server_error","message":"oops"}}`))
+			return
+		}
+		if key != firstKey {
+			t.Errorf("expected retry to reuse idempotency key %q, got %q", firstKey, key)
+		}
+		w.WriteHeader(200)
+		json.NewEncoder(w).Encode(map[string]string{"id": "agt_1", "name": "test", "type": "ai", "status": "active"})
+	}))
+	defer srv.Close()
+
+	client, _ := chronary.NewClient(
+		chronary.WithAPIKey("test_key"),
+		chronary.WithBaseURL(srv.URL),
+		chronary.WithMaxRetries(1),
+	)
+	_, err := client.Agents.Create(context.Background(), &chronary.CreateAgentParams{
+		Name: "test",
+		Type: chronary.AgentTypeAI,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if atomic.LoadInt32(&attempts) != 2 {
+		t.Errorf("expected 2 attempts, got %d", atomic.LoadInt32(&attempts))
+	}
+}
+
 func TestDoNoIdempotencyKeyOnGet(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet && r.Header.Get("Idempotency-Key") != "" {

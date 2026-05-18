@@ -87,11 +87,16 @@ func ConstructEvent(payload []byte, headers http.Header, secret string, opts ...
 		return nil, err
 	}
 
-	var event WebhookEvent
-	if err := json.Unmarshal(payload, &event); err != nil {
+	eventType := headers.Get("X-Chronary-Event-Type")
+	if eventType == "" {
+		return nil, fmt.Errorf("chronary: missing X-Chronary-Event-Type header")
+	}
+
+	var data map[string]interface{}
+	if err := json.Unmarshal(payload, &data); err != nil {
 		return nil, fmt.Errorf("chronary: parsing webhook payload: %w", err)
 	}
-	return &event, nil
+	return &WebhookEvent{Type: eventType, Data: data}, nil
 }
 
 // ComputeSignature computes the HMAC-SHA256 signature for a webhook payload.
@@ -105,11 +110,19 @@ func ComputeSignature(payload []byte, secret string, timestamp int64) string {
 // SignedHeaders returns HTTP headers with a valid signature for a webhook payload.
 // This is useful for testing webhook handlers.
 func SignedHeaders(payload []byte, secret string) http.Header {
+	return SignedHeadersWithEventType(payload, secret, "")
+}
+
+// SignedHeadersWithEventType returns HTTP headers with a valid signature and event type.
+// This is useful for testing webhook handlers that call ConstructEvent.
+func SignedHeadersWithEventType(payload []byte, secret string, eventType string) http.Header {
 	ts := time.Now().Unix()
 	h := http.Header{}
 	h.Set("X-Timestamp", strconv.FormatInt(ts, 10))
 	h.Set("X-Signature", ComputeSignature(payload, secret, ts))
+	if eventType != "" {
+		h.Set("X-Chronary-Event-Type", eventType)
+	}
 	h.Set("Content-Type", "application/json")
 	return h
 }
-

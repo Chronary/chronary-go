@@ -3,7 +3,7 @@
 // Create a client with your API key:
 //
 //	client, err := chronary.NewClient(
-//	    chronary.WithAPIKey("chr_sk_live_..."),
+//	    chronary.WithAPIKey("chr_sk_..."),
 //	)
 //
 // Or set the CHRONARY_API_KEY environment variable and call NewClient with no options:

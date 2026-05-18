@@ -232,7 +232,6 @@ func TestProposalCreate(t *testing.T) {
 			"participant_agent_ids":  []string{"agt_2"},
 			"calendar_id":            "cal_1",
 			"status":                 "pending",
-			"is_test":                false,
 			"expires_at":             nil,
 			"resolved_slot":          nil,
 			"created_event_id":       nil,
@@ -309,15 +308,15 @@ func TestKeysCreate(t *testing.T) {
 		testutil.AssertMethod(t, r, "POST")
 		testutil.AssertPath(t, r, "/v1/keys")
 		testutil.RespondJSON(w, 201, map[string]interface{}{
-			"id": "skey_1", "mode": "live", "key_prefix": "chr_ak_live_",
+			"id": "skey_1", "key_prefix": "chr_ak_",
 			"agent_id": "agt_1", "label": nil,
 			"created_at": "2026-04-14T00:00:00Z",
-			"key":        "chr_ak_live_xxxxxxxx",
+			"key":        "chr_ak_xxxxxxxx",
 		})
 	}))
 
 	key, err := client.Keys.Create(context.Background(), &chronary.CreateScopedAPIKeyParams{
-		AgentID: "agt_1", Mode: chronary.KeyModeLive,
+		AgentID: "agt_1",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -333,7 +332,7 @@ func TestKeysList(t *testing.T) {
 		testutil.AssertPath(t, r, "/v1/keys")
 		testutil.RespondJSON(w, 200, map[string]interface{}{
 			"keys": []map[string]interface{}{
-				{"id": "skey_1", "mode": "live", "key_prefix": "chr_ak_live_",
+				{"id": "skey_1", "key_prefix": "chr_ak_",
 					"agent_id": "agt_1", "label": nil,
 					"created_at": "2026-04-14T00:00:00Z"},
 			},
@@ -369,7 +368,7 @@ func TestAgentAuthSignUp_Anonymous(t *testing.T) {
 		testutil.AssertPath(t, r, "/v1/agent/sign-up")
 		testutil.RespondJSON(w, 200, map[string]interface{}{
 			"org_id": "org_1", "agent_id": "agt_1",
-			"api_key": "chr_sk_live_xxx", "test_api_key": "chr_sk_test_xxx",
+			"api_key": "chr_sk_xxx",
 			"message": "Verification code sent to email",
 		})
 	}))

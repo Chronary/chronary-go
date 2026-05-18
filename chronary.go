@@ -27,6 +27,7 @@ type Client struct {
 	Webhooks          *WebhookService
 	ICalSubscriptions *ICalSubscriptionService
 	Usage             *UsageService
+	AuditLog          *AuditLogService
 	Scheduling        *SchedulingService
 	Keys              *KeysService
 	Feedback          *FeedbackService
@@ -82,6 +83,7 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	c.Webhooks = &WebhookService{s}
 	c.ICalSubscriptions = &ICalSubscriptionService{s}
 	c.Usage = &UsageService{s}
+	c.AuditLog = &AuditLogService{s}
 	c.Scheduling = &SchedulingService{s}
 	c.Keys = &KeysService{s}
 	c.Feedback = &FeedbackService{s}

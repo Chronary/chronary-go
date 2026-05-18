@@ -302,18 +302,38 @@ type UsageCounter struct {
 	Limit *int `json:"limit"`
 }
 
+// HoldsUsage holds the temporal-hold lifecycle counters for the current
+// period. Informational — not gated by any plan limit. The funnel identity
+// `created = confirmed + expired + active` holds, where `active` is
+// derived (not stored). Counts cover all three end-of-hold paths: TTL
+// expiry, manual release, and priority-bump.
+type HoldsUsage struct {
+	Created   int `json:"created"`
+	Confirmed int `json:"confirmed"`
+	Expired   int `json:"expired"`
+}
+
+// CrossCalendarQueriesUsage counts availability requests that touched more
+// than one calendar in the current period. Informational — gated separately
+// by the cross_calendar_availability capability, not by this counter.
+type CrossCalendarQueriesUsage struct {
+	Used int `json:"used"`
+}
+
 // Usage is the response from the usage endpoint.
 type Usage struct {
-	PeriodStart         string       `json:"period_start"`
-	PeriodEnd           string       `json:"period_end"`
-	Plan                string       `json:"plan"`
-	Agents              UsageCounter `json:"agents"`
-	Calendars           UsageCounter `json:"calendars"`
-	Events              UsageCounter `json:"events"`
-	APICalls            UsageCounter `json:"api_calls"`
-	Webhooks            UsageCounter `json:"webhooks"`
-	AvailabilityQueries UsageCounter `json:"availability_queries"`
-	ICalSubscriptions   UsageCounter `json:"ical_subscriptions"`
+	PeriodStart            string                    `json:"period_start"`
+	PeriodEnd              string                    `json:"period_end"`
+	Plan                   string                    `json:"plan"`
+	Agents                 UsageCounter              `json:"agents"`
+	Calendars              UsageCounter              `json:"calendars"`
+	Events                 UsageCounter              `json:"events"`
+	APICalls               UsageCounter              `json:"api_calls"`
+	Webhooks               UsageCounter              `json:"webhooks"`
+	AvailabilityQueries    UsageCounter              `json:"availability_queries"`
+	ICalSubscriptions      UsageCounter              `json:"ical_subscriptions"`
+	Holds                  HoldsUsage                `json:"holds"`
+	CrossCalendarQueries   CrossCalendarQueriesUsage `json:"cross_calendar_queries"`
 }
 
 // --- Webhook Event ---
@@ -484,7 +504,6 @@ type ProposalSummary struct {
 	ParticipantAgentIDs []string               `json:"participant_agent_ids"`
 	CalendarID          string                 `json:"calendar_id"`
 	Status              ProposalStatus         `json:"status"`
-	IsTest              bool                   `json:"is_test"`
 	ExpiresAt           *string                `json:"expires_at"`
 	ResolvedSlot        *ProposalSlot          `json:"resolved_slot"`
 	CreatedEventID      *string                `json:"created_event_id"`
@@ -544,18 +563,9 @@ type CancelProposalResponse struct {
 
 // --- Scoped API keys ---
 
-// KeyMode distinguishes live vs test mode for scoped API keys.
-type KeyMode string
-
-const (
-	KeyModeLive KeyMode = "live"
-	KeyModeTest KeyMode = "test"
-)
-
 // ScopedAPIKey is an agent-scoped API key (no secret material — listing shape).
 type ScopedAPIKey struct {
 	ID        string  `json:"id"`
-	Mode      KeyMode `json:"mode"`
 	KeyPrefix string  `json:"key_prefix"`
 	AgentID   string  `json:"agent_id"`
 	Label     *string `json:"label"`
@@ -572,7 +582,6 @@ type CreatedScopedAPIKey struct {
 // CreateScopedAPIKeyParams are the parameters for creating a scoped API key.
 type CreateScopedAPIKeyParams struct {
 	AgentID string  `json:"agent_id"`
-	Mode    KeyMode `json:"mode"`
 	Label   *string `json:"label,omitempty"`
 }
 
@@ -622,11 +631,10 @@ type AgentSignUpParams struct {
 // Message are populated only on the new-org branch; the existing-org dedup branch
 // returns just Message (no credentials, to block enumeration).
 type AgentSignUpResponse struct {
-	OrgID      string `json:"org_id,omitempty"`
-	AgentID    string `json:"agent_id,omitempty"`
-	APIKey     string `json:"api_key,omitempty"`
-	TestAPIKey string `json:"test_api_key,omitempty"`
-	Message    string `json:"message"`
+	OrgID   string `json:"org_id,omitempty"`
+	AgentID string `json:"agent_id,omitempty"`
+	APIKey  string `json:"api_key,omitempty"`
+	Message string `json:"message"`
 }
 
 // IsNewOrg returns true when the response contains credentials for a freshly
@@ -667,4 +675,43 @@ type SubmitFeedbackParams struct {
 // FeedbackAcceptedResponse is the response from POST /v1/feedback.
 type FeedbackAcceptedResponse struct {
 	Status string `json:"status"`
+}
+
+// --- Audit Log (#509) ---
+
+// AuditLogEntry is a single audit-log record for a mutating API operation or
+// auth lifecycle event.
+type AuditLogEntry struct {
+	ID string `json:"id"`
+	// Action is the event identifier, e.g. "agent.create" or "auth.signin".
+	Action string `json:"action"`
+	// ActorKeyPrefix holds the first 20 chars of the actor API key (never the full key).
+	ActorKeyPrefix *string `json:"actor_key_prefix"`
+	// AgentID is set when the actor used a per-agent chr_ak_* key.
+	AgentID *string `json:"agent_id"`
+	// Resource contains entity IDs extracted from the path (e.g. "agt_1/cal_2").
+	Resource  *string `json:"resource"`
+	IP        *string `json:"ip"`
+	Status    int     `json:"status"`
+	Method    string  `json:"method"`
+	Path      string  `json:"path"`
+	DurationMS int    `json:"duration_ms"`
+	RequestID  *string `json:"request_id"`
+	CreatedAt  string `json:"created_at"`
+}
+
+// AuditLogPagination is the cursor envelope inside an audit-log list response.
+type AuditLogPagination struct {
+	// NextCursor is nil when there are no further pages.
+	NextCursor *string `json:"next_cursor"`
+}
+
+// AuditLogListResponse is returned by AuditLogService.List.
+type AuditLogListResponse struct {
+	Data       []AuditLogEntry    `json:"data"`
+	Pagination AuditLogPagination `json:"pagination"`
+	// RetentionDays is the plan's audit-log retention window (days). Nil = unlimited.
+	RetentionDays *int `json:"retention_days"`
+	// RangeClamped is true when the requested from-date was outside the retention window.
+	RangeClamped bool `json:"range_clamped"`
 }

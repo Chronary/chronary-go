@@ -103,7 +103,35 @@ func TestVerifySignatureTamperedBody(t *testing.T) {
 }
 
 func TestConstructEvent(t *testing.T) {
-	payload := []byte(`{"type":"event.created","data":{"id":"evt_1"}}`)
+	payload := []byte(`{"event":{"id":"evt_1"}}`)
+	secret := "whsec_test_secret"
+	now := time.Now()
+	ts := now.Unix()
+
+	sig := ComputeSignature(payload, secret, ts)
+	headers := http.Header{}
+	headers.Set("X-Signature", sig)
+	headers.Set("X-Timestamp", strconv.FormatInt(ts, 10))
+	headers.Set("X-Chronary-Event-Type", "event.created")
+
+	event, err := ConstructEvent(payload, headers, secret, withNow(func() time.Time { return now }))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if event.Type != "event.created" {
+		t.Errorf("expected event.created, got %s", event.Type)
+	}
+	eventData, ok := event.Data["event"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected event payload object, got %T", event.Data["event"])
+	}
+	if eventData["id"] != "evt_1" {
+		t.Errorf("expected evt_1, got %v", eventData["id"])
+	}
+}
+
+func TestConstructEventMissingEventType(t *testing.T) {
+	payload := []byte(`{"event":{"id":"evt_1"}}`)
 	secret := "whsec_test_secret"
 	now := time.Now()
 	ts := now.Unix()
@@ -113,15 +141,9 @@ func TestConstructEvent(t *testing.T) {
 	headers.Set("X-Signature", sig)
 	headers.Set("X-Timestamp", strconv.FormatInt(ts, 10))
 
-	event, err := ConstructEvent(payload, headers, secret, withNow(func() time.Time { return now }))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if event.Type != "event.created" {
-		t.Errorf("expected event.created, got %s", event.Type)
-	}
-	if event.Data["id"] != "evt_1" {
-		t.Errorf("expected evt_1, got %v", event.Data["id"])
+	_, err := ConstructEvent(payload, headers, secret, withNow(func() time.Time { return now }))
+	if err == nil {
+		t.Fatal("expected missing X-Chronary-Event-Type error")
 	}
 }
 
@@ -140,5 +162,23 @@ func TestSignedHeaders(t *testing.T) {
 	err := VerifySignature(payload, headers, secret)
 	if err != nil {
 		t.Fatalf("SignedHeaders should produce valid signatures: %v", err)
+	}
+}
+
+func TestSignedHeadersWithEventType(t *testing.T) {
+	payload := []byte(`{"event":{"id":"evt_1"}}`)
+	secret := "test_secret"
+	headers := SignedHeadersWithEventType(payload, secret, "event.created")
+
+	if headers.Get("X-Chronary-Event-Type") != "event.created" {
+		t.Error("expected X-Chronary-Event-Type header")
+	}
+
+	event, err := ConstructEvent(payload, headers, secret)
+	if err != nil {
+		t.Fatalf("ConstructEvent should accept signed headers: %v", err)
+	}
+	if event.Type != "event.created" {
+		t.Errorf("expected event.created, got %s", event.Type)
 	}
 }

@@ -11,7 +11,8 @@ type AgentService struct {
 	service
 }
 
-// Create creates a new agent.
+// Create registers your agent with Chronary. It creates a Chronary identity for an
+// agent that already exists in your system, so it can own calendars, events, and webhooks.
 func (s *AgentService) Create(ctx context.Context, params *CreateAgentParams, opts ...RequestOption) (*Agent, error) {
 	var agent Agent
 	err := s.client.do(ctx, http.MethodPost, "/v1/agents", params, &agent, opts...)

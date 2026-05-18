@@ -25,7 +25,7 @@ import (
 
 func main() {
     client, err := chronary.NewClient(
-        chronary.WithAPIKey("chr_sk_live_..."),
+        chronary.WithAPIKey("chr_sk_..."),
     )
     if err != nil {
         log.Fatal(err)
@@ -33,7 +33,7 @@ func main() {
 
     ctx := context.Background()
 
-    // Create an agent
+    // Register your agent with Chronary
     agent, err := client.Agents.Create(ctx, &chronary.CreateAgentParams{
         Name: "Meeting Bot",
         Type: chronary.AgentTypeAI,
@@ -150,7 +150,7 @@ fmt.Printf("Received: %s\n", event.Type)
 
 ```go
 client, err := chronary.NewClient(
-    chronary.WithAPIKey("chr_sk_live_..."),       // or set CHRONARY_API_KEY env var
+    chronary.WithAPIKey("chr_sk_..."),       // or set CHRONARY_API_KEY env var
     chronary.WithBaseURL("https://api.custom.ai"), // custom base URL
     chronary.WithTimeout(60 * time.Second),        // request timeout (default: 30s)
     chronary.WithMaxRetries(3),                    // retry count (default: 2)

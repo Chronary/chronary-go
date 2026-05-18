@@ -9,7 +9,7 @@ import (
 //
 // SignUp is unauthenticated and can be invoked on a client constructed with
 // WithAnonymous() (no API key). Verify must be called on a client constructed
-// with the restricted live API key returned from a successful new-org SignUp.
+// with the restricted API key returned from a successful new-org SignUp.
 type AgentAuthService struct {
 	service
 }
@@ -17,9 +17,8 @@ type AgentAuthService struct {
 // SignUp registers a new agent + org. Sends an OTP to the provided email.
 //
 // Two response shapes:
-//   - **New org** — IsNewOrg() returns true. APIKey + TestAPIKey are populated.
-//     The live APIKey is restricted to /v1/agent/verify until the OTP is
-//     submitted; the test key works immediately.
+//   - **New org** — IsNewOrg() returns true. APIKey is populated and is
+//     restricted to /v1/agent/verify until the OTP is submitted.
 //   - **Existing org** — IsNewOrg() returns false. Only Message is populated;
 //     no credentials are leaked when the email matches an existing org
 //     (enumeration defense).
@@ -35,7 +34,7 @@ func (s *AgentAuthService) SignUp(ctx context.Context, params *AgentSignUpParams
 	return &resp, nil
 }
 
-// Verify submits the OTP from SignUp to unlock the live API key.
+// Verify submits the OTP from SignUp to unlock the API key.
 //
 // Must be called on a client constructed with the restricted APIKey returned
 // from SignUp — NOT on the anonymous client used to issue SignUp.

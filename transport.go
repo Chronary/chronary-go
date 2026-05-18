@@ -17,6 +17,8 @@ import (
 	"time"
 )
 
+const maxResponseBodyBytes = 10 * 1024 * 1024
+
 // service is the base for all resource services.
 type service struct {
 	client *Client
@@ -36,6 +38,11 @@ func (c *Client) do(ctx context.Context, method, path string, body interface{}, 
 	}
 
 	var lastErr error
+	idempotencyKey := rc.idempotencyKey
+	if method != http.MethodGet && idempotencyKey == "" {
+		idempotencyKey = newUUID()
+	}
+
 	for attempt := 0; attempt <= c.maxRetries; attempt++ {
 		if attempt > 0 {
 			delay := backoff(attempt, lastErr)
@@ -76,11 +83,7 @@ func (c *Client) do(ctx context.Context, method, path string, body interface{}, 
 
 		// Idempotency key for mutating methods
 		if method != http.MethodGet {
-			key := rc.idempotencyKey
-			if key == "" {
-				key = newUUID()
-			}
-			req.Header.Set("Idempotency-Key", key)
+			req.Header.Set("Idempotency-Key", idempotencyKey)
 		}
 
 		// Per-request custom headers
@@ -101,11 +104,16 @@ func (c *Client) do(ctx context.Context, method, path string, body interface{}, 
 			}
 			return lastErr
 		}
-		defer resp.Body.Close()
-
-		respBody, err := io.ReadAll(resp.Body)
+		respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBodyBytes+1))
+		closeErr := resp.Body.Close()
 		if err != nil {
 			return fmt.Errorf("chronary: reading response: %w", err)
+		}
+		if closeErr != nil {
+			return fmt.Errorf("chronary: closing response: %w", closeErr)
+		}
+		if len(respBody) > maxResponseBodyBytes {
+			return fmt.Errorf("chronary: response body exceeds %d bytes", maxResponseBodyBytes)
 		}
 
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {

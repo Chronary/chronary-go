@@ -70,28 +70,40 @@ type ListAgentsParams struct {
 
 // Calendar represents a Chronary calendar resource.
 type Calendar struct {
-	ID        string                 `json:"id"`
-	AgentID   *string                `json:"agent_id"`
-	Name      string                 `json:"name"`
-	Timezone  string                 `json:"timezone"`
-	ICalToken string                 `json:"ical_token,omitempty"`
-	Metadata  map[string]interface{} `json:"metadata"`
-	CreatedAt time.Time              `json:"created_at"`
-	UpdatedAt time.Time              `json:"updated_at"`
+	ID        string  `json:"id"`
+	AgentID   *string `json:"agent_id"`
+	Name      string  `json:"name"`
+	Timezone  string  `json:"timezone"`
+	ICalToken string  `json:"ical_token,omitempty"`
+	// DefaultReminders is the calendar-level default reminder schedule applied to
+	// events that don't set their own. Values are offsets in minutes before an
+	// event's start_time (e.g. []int{10, 1440}); max 5, each 1–40320 (28 days).
+	DefaultReminders []int                  `json:"default_reminders"`
+	Metadata         map[string]interface{} `json:"metadata"`
+	CreatedAt        time.Time              `json:"created_at"`
+	UpdatedAt        time.Time              `json:"updated_at"`
 }
 
 // CreateCalendarParams are the parameters for creating a calendar.
 type CreateCalendarParams struct {
-	Name     string                 `json:"name"`
-	Timezone string                 `json:"timezone"`
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
+	Name     string `json:"name"`
+	Timezone string `json:"timezone"`
+	// DefaultReminders sets the calendar-level default reminder schedule. Values
+	// are offsets in minutes before an event's start_time (e.g. []int{10, 1440});
+	// max 5, each 1–40320 (28 days). Omit to use the system default ([10]).
+	DefaultReminders []int                  `json:"default_reminders,omitempty"`
+	Metadata         map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // UpdateCalendarParams are the parameters for updating a calendar.
 type UpdateCalendarParams struct {
-	Name     *string                `json:"name,omitempty"`
-	Timezone *string                `json:"timezone,omitempty"`
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
+	Name     *string `json:"name,omitempty"`
+	Timezone *string `json:"timezone,omitempty"`
+	// DefaultReminders replaces the calendar-level default reminder schedule.
+	// Values are offsets in minutes before an event's start_time (e.g.
+	// []int{10, 1440}); max 5, each 1–40320 (28 days).
+	DefaultReminders []int                  `json:"default_reminders,omitempty"`
+	Metadata         map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // ListCalendarsParams are the query parameters for listing calendars.
@@ -117,46 +129,60 @@ const (
 type EventSource string
 
 const (
-	EventSourceInternal    EventSource = "internal"
+	EventSourceInternal     EventSource = "internal"
 	EventSourceExternalICal EventSource = "external_ical"
 )
 
 // Event represents a Chronary calendar event.
 type Event struct {
-	ID          string                 `json:"id"`
-	CalendarID  string                 `json:"calendar_id"`
-	Title       string                 `json:"title"`
-	Description *string                `json:"description"`
-	StartTime   time.Time              `json:"start_time"`
-	EndTime     time.Time              `json:"end_time"`
-	AllDay      bool                   `json:"all_day"`
-	Status      EventStatus            `json:"status"`
-	Source      EventSource            `json:"source"`
-	Metadata    map[string]interface{} `json:"metadata"`
-	CreatedAt   time.Time              `json:"created_at"`
-	UpdatedAt   time.Time              `json:"updated_at"`
+	ID          string      `json:"id"`
+	CalendarID  string      `json:"calendar_id"`
+	Title       string      `json:"title"`
+	Description *string     `json:"description"`
+	StartTime   time.Time   `json:"start_time"`
+	EndTime     time.Time   `json:"end_time"`
+	AllDay      bool        `json:"all_day"`
+	Status      EventStatus `json:"status"`
+	Source      EventSource `json:"source"`
+	// Reminders are offsets in minutes before start_time at which an
+	// event.reminder webhook fires and a VALARM is emitted in the iCal feed
+	// (e.g. []int{10, 1440}). May be null/absent when the event inherits the
+	// calendar default; an empty slice means no reminders.
+	Reminders []int                  `json:"reminders"`
+	Metadata  map[string]interface{} `json:"metadata"`
+	CreatedAt time.Time              `json:"created_at"`
+	UpdatedAt time.Time              `json:"updated_at"`
 }
 
 // CreateEventParams are the parameters for creating an event.
 type CreateEventParams struct {
-	Title       string                 `json:"title"`
-	StartTime   string                 `json:"start_time"`
-	EndTime     string                 `json:"end_time"`
-	Description *string                `json:"description,omitempty"`
-	AllDay      *bool                  `json:"all_day,omitempty"`
-	Status      *EventStatus           `json:"status,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	Title       string       `json:"title"`
+	StartTime   string       `json:"start_time"`
+	EndTime     string       `json:"end_time"`
+	Description *string      `json:"description,omitempty"`
+	AllDay      *bool        `json:"all_day,omitempty"`
+	Status      *EventStatus `json:"status,omitempty"`
+	// Reminders are offsets in minutes before start_time (e.g. []int{10, 1440});
+	// max 5, each 1–40320 (28 days). Each fires an event.reminder webhook and
+	// shows as a VALARM in the iCal feed. Omit to inherit the calendar default
+	// (then the system default [10]); send an empty slice for no reminders.
+	Reminders []int                  `json:"reminders,omitempty"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // UpdateEventParams are the parameters for updating an event.
 type UpdateEventParams struct {
-	Title       *string                `json:"title,omitempty"`
-	Description *string                `json:"description,omitempty"`
-	StartTime   *string                `json:"start_time,omitempty"`
-	EndTime     *string                `json:"end_time,omitempty"`
-	AllDay      *bool                  `json:"all_day,omitempty"`
-	Status      *EventStatus           `json:"status,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	Title       *string      `json:"title,omitempty"`
+	Description *string      `json:"description,omitempty"`
+	StartTime   *string      `json:"start_time,omitempty"`
+	EndTime     *string      `json:"end_time,omitempty"`
+	AllDay      *bool        `json:"all_day,omitempty"`
+	Status      *EventStatus `json:"status,omitempty"`
+	// Reminders replaces the event's reminder schedule. Offsets in minutes
+	// before start_time (e.g. []int{10, 1440}); max 5, each 1–40320 (28 days).
+	// An empty slice clears all reminders.
+	Reminders []int                  `json:"reminders,omitempty"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // ListEventsParams are the query parameters for listing events.
@@ -322,18 +348,18 @@ type CrossCalendarQueriesUsage struct {
 
 // Usage is the response from the usage endpoint.
 type Usage struct {
-	PeriodStart            string                    `json:"period_start"`
-	PeriodEnd              string                    `json:"period_end"`
-	Plan                   string                    `json:"plan"`
-	Agents                 UsageCounter              `json:"agents"`
-	Calendars              UsageCounter              `json:"calendars"`
-	Events                 UsageCounter              `json:"events"`
-	APICalls               UsageCounter              `json:"api_calls"`
-	Webhooks               UsageCounter              `json:"webhooks"`
-	AvailabilityQueries    UsageCounter              `json:"availability_queries"`
-	ICalSubscriptions      UsageCounter              `json:"ical_subscriptions"`
-	Holds                  HoldsUsage                `json:"holds"`
-	CrossCalendarQueries   CrossCalendarQueriesUsage `json:"cross_calendar_queries"`
+	PeriodStart          string                    `json:"period_start"`
+	PeriodEnd            string                    `json:"period_end"`
+	Plan                 string                    `json:"plan"`
+	Agents               UsageCounter              `json:"agents"`
+	Calendars            UsageCounter              `json:"calendars"`
+	Events               UsageCounter              `json:"events"`
+	APICalls             UsageCounter              `json:"api_calls"`
+	Webhooks             UsageCounter              `json:"webhooks"`
+	AvailabilityQueries  UsageCounter              `json:"availability_queries"`
+	ICalSubscriptions    UsageCounter              `json:"ical_subscriptions"`
+	Holds                HoldsUsage                `json:"holds"`
+	CrossCalendarQueries CrossCalendarQueriesUsage `json:"cross_calendar_queries"`
 }
 
 // --- Webhook Event ---
@@ -358,13 +384,13 @@ const (
 
 // CalendarContext is the snapshot returned by GET /v1/calendars/{id}/context.
 type CalendarContext struct {
-	CalendarID    string          `json:"calendar_id"`
-	Now           string          `json:"now"`
-	AgentStatus   AgentLiveStatus `json:"agent_status"`
-	CurrentEvent  *Event          `json:"current_event"`
-	NextEvent     *Event          `json:"next_event"`
-	RecentEvents  []Event         `json:"recent_events"`
-	Upcoming      []Event         `json:"upcoming"`
+	CalendarID   string          `json:"calendar_id"`
+	Now          string          `json:"now"`
+	AgentStatus  AgentLiveStatus `json:"agent_status"`
+	CurrentEvent *Event          `json:"current_event"`
+	NextEvent    *Event          `json:"next_event"`
+	RecentEvents []Event         `json:"recent_events"`
+	Upcoming     []Event         `json:"upcoming"`
 }
 
 // --- Availability rules ---
@@ -690,14 +716,14 @@ type AuditLogEntry struct {
 	// AgentID is set when the actor used a per-agent chr_ak_* key.
 	AgentID *string `json:"agent_id"`
 	// Resource contains entity IDs extracted from the path (e.g. "agt_1/cal_2").
-	Resource  *string `json:"resource"`
-	IP        *string `json:"ip"`
-	Status    int     `json:"status"`
-	Method    string  `json:"method"`
-	Path      string  `json:"path"`
-	DurationMS int    `json:"duration_ms"`
+	Resource   *string `json:"resource"`
+	IP         *string `json:"ip"`
+	Status     int     `json:"status"`
+	Method     string  `json:"method"`
+	Path       string  `json:"path"`
+	DurationMS int     `json:"duration_ms"`
 	RequestID  *string `json:"request_id"`
-	CreatedAt  string `json:"created_at"`
+	CreatedAt  string  `json:"created_at"`
 }
 
 // AuditLogPagination is the cursor envelope inside an audit-log list response.

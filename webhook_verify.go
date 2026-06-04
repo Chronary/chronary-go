@@ -96,7 +96,7 @@ func ConstructEvent(payload []byte, headers http.Header, secret string, opts ...
 	if err := json.Unmarshal(payload, &data); err != nil {
 		return nil, fmt.Errorf("chronary: parsing webhook payload: %w", err)
 	}
-	return &WebhookEvent{Type: eventType, Data: data}, nil
+	return &WebhookEvent{Type: WebhookEventType(eventType), Data: data}, nil
 }
 
 // ComputeSignature computes the HMAC-SHA256 signature for a webhook payload.

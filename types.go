@@ -364,9 +364,47 @@ type Usage struct {
 
 // --- Webhook Event ---
 
+// WebhookEventType enumerates the event types Chronary can deliver to a webhook.
+// Mirrors the server's WEBHOOK_EVENT_TYPES and the TypeScript / Python SDK unions.
+type WebhookEventType string
+
+const (
+	WebhookEventAgentCreated       WebhookEventType = "agent.created"
+	WebhookEventAgentUpdated       WebhookEventType = "agent.updated"
+	WebhookEventEventCreated       WebhookEventType = "event.created"
+	WebhookEventEventUpdated       WebhookEventType = "event.updated"
+	WebhookEventEventDeleted       WebhookEventType = "event.deleted"
+	WebhookEventEventStarted       WebhookEventType = "event.started"
+	WebhookEventEventEnded         WebhookEventType = "event.ended"
+	WebhookEventEventReminder      WebhookEventType = "event.reminder"
+	WebhookEventEventHoldCreated   WebhookEventType = "event.hold_created"
+	WebhookEventEventHoldExpired   WebhookEventType = "event.hold_expired"
+	WebhookEventEventHoldReleased  WebhookEventType = "event.hold_released"
+	WebhookEventEventHoldConfirmed WebhookEventType = "event.hold_confirmed"
+	WebhookEventProposalCreated    WebhookEventType = "proposal.created"
+	WebhookEventProposalResponded  WebhookEventType = "proposal.responded"
+	WebhookEventProposalConfirmed  WebhookEventType = "proposal.confirmed"
+	WebhookEventProposalExpired    WebhookEventType = "proposal.expired"
+	WebhookEventProposalCancelled  WebhookEventType = "proposal.cancelled"
+	WebhookEventWebhookDeactivated WebhookEventType = "webhook.deactivated"
+)
+
+// WebhookEventTypes is the full, ordered set of webhook event types — kept in
+// lockstep with the server contract and the other SDK surfaces.
+var WebhookEventTypes = []WebhookEventType{
+	WebhookEventAgentCreated, WebhookEventAgentUpdated,
+	WebhookEventEventCreated, WebhookEventEventUpdated, WebhookEventEventDeleted,
+	WebhookEventEventStarted, WebhookEventEventEnded, WebhookEventEventReminder,
+	WebhookEventEventHoldCreated, WebhookEventEventHoldExpired,
+	WebhookEventEventHoldReleased, WebhookEventEventHoldConfirmed,
+	WebhookEventProposalCreated, WebhookEventProposalResponded, WebhookEventProposalConfirmed,
+	WebhookEventProposalExpired, WebhookEventProposalCancelled,
+	WebhookEventWebhookDeactivated,
+}
+
 // WebhookEvent represents a parsed webhook delivery payload.
 type WebhookEvent struct {
-	Type string                 `json:"type"`
+	Type WebhookEventType       `json:"type"`
 	Data map[string]interface{} `json:"data"`
 }
 

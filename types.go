@@ -70,18 +70,23 @@ type ListAgentsParams struct {
 
 // Calendar represents a Chronary calendar resource.
 type Calendar struct {
-	ID         string  `json:"id"`
-	AgentID    *string `json:"agent_id"`
-	Name       string  `json:"name"`
-	Timezone   string  `json:"timezone"`
-	ICalToken  string  `json:"ical_token,omitempty"`
-	ExternalID *string `json:"externalId"`
-	Provider   *string `json:"provider"`
+	ID       string  `json:"id"`
+	OrgID    string  `json:"orgId"`
+	AgentID  *string `json:"agent_id"`
+	Name     string  `json:"name"`
+	Timezone string  `json:"timezone"`
+	// AgentStatus is the live agent status surfaced on the calendar
+	// (one of "idle", "working", "waiting", "error").
+	AgentStatus string  `json:"agent_status"`
+	ICalURL     string  `json:"ical_url"`
+	ExternalID  *string `json:"externalId"`
+	Provider    *string `json:"provider"`
 	// DefaultReminders is the calendar-level default reminder schedule applied to
 	// events that don't set their own. Values are offsets in minutes before an
 	// event's start_time (e.g. []int{10, 1440}); max 5, each 1–40320 (28 days).
 	DefaultReminders []int                  `json:"default_reminders"`
 	Metadata         map[string]interface{} `json:"metadata"`
+	DeletedAt        *string                `json:"deletedAt"`
 	CreatedAt        time.Time              `json:"created_at"`
 	UpdatedAt        time.Time              `json:"updated_at"`
 }
@@ -247,6 +252,7 @@ type CrossAgentAvailabilityParams struct {
 // Webhook represents a Chronary webhook subscription.
 type Webhook struct {
 	ID                  string    `json:"id"`
+	OrgID               string    `json:"orgId"`
 	URL                 string    `json:"url"`
 	Events              []string  `json:"events"`
 	Active              bool      `json:"active"`

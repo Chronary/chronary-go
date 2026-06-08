@@ -75,6 +75,34 @@ func (s *EventService) Delete(ctx context.Context, calendarID, eventID string, o
 	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/calendars/%s/events/%s", calendarID, eventID), nil, opts...)
 }
 
+// GetByID retrieves an event by ID alone. The calendar is resolved internally
+// from the event, so no calendar ID is required.
+func (s *EventService) GetByID(ctx context.Context, eventID string, opts ...RequestOption) (*Event, error) {
+	var event Event
+	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/events/%s", eventID), nil, &event, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &event, nil
+}
+
+// UpdateByID updates an event by ID alone. The calendar is resolved internally
+// from the event, so no calendar ID is required.
+func (s *EventService) UpdateByID(ctx context.Context, eventID string, params *UpdateEventParams, opts ...RequestOption) (*Event, error) {
+	var event Event
+	err := s.client.do(ctx, http.MethodPatch, fmt.Sprintf("/v1/events/%s", eventID), params, &event, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &event, nil
+}
+
+// DeleteByID deletes an event by ID alone. The calendar is resolved internally
+// from the event, so no calendar ID is required.
+func (s *EventService) DeleteByID(ctx context.Context, eventID string, opts ...RequestOption) error {
+	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/events/%s", eventID), nil, opts...)
+}
+
 // Confirm promotes a held event (status="hold") to status="confirmed".
 // Returns 409 if the event is not a hold or the hold has expired.
 func (s *EventService) Confirm(ctx context.Context, eventID string, opts ...RequestOption) (*Event, error) {

@@ -72,6 +72,62 @@ func TestEventDelete_UsesCalendarScopedPath(t *testing.T) {
 	}
 }
 
+func TestEventGetByID_UsesEventOnlyPath(t *testing.T) {
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		testutil.AssertMethod(t, r, "GET")
+		testutil.AssertPath(t, r, "/v1/events/evt_1")
+		testutil.RespondJSON(w, 200, map[string]interface{}{
+			"id": "evt_1", "calendar_id": "cal_1", "title": "Standup",
+			"start_time": "2026-04-14T09:00:00Z", "end_time": "2026-04-14T09:30:00Z",
+			"all_day": false, "status": "confirmed", "source": "internal",
+			"created_at": "2026-04-14T00:00:00Z", "updated_at": "2026-04-14T00:00:00Z",
+		})
+	}))
+
+	event, err := client.Events.GetByID(context.Background(), "evt_1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if event.ID != "evt_1" {
+		t.Errorf("expected evt_1, got %s", event.ID)
+	}
+}
+
+func TestEventUpdateByID_UsesEventOnlyPath(t *testing.T) {
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		testutil.AssertMethod(t, r, "PATCH")
+		testutil.AssertPath(t, r, "/v1/events/evt_1")
+		testutil.RespondJSON(w, 200, map[string]interface{}{
+			"id": "evt_1", "calendar_id": "cal_1", "title": "Renamed",
+			"start_time": "2026-04-14T09:00:00Z", "end_time": "2026-04-14T09:30:00Z",
+			"all_day": false, "status": "confirmed", "source": "internal",
+			"created_at": "2026-04-14T00:00:00Z", "updated_at": "2026-04-14T00:00:00Z",
+		})
+	}))
+
+	event, err := client.Events.UpdateByID(context.Background(), "evt_1", &chronary.UpdateEventParams{
+		Title: chronary.String("Renamed"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if event.Title != "Renamed" {
+		t.Errorf("expected Renamed, got %s", event.Title)
+	}
+}
+
+func TestEventDeleteByID_UsesEventOnlyPath(t *testing.T) {
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		testutil.AssertMethod(t, r, "DELETE")
+		testutil.AssertPath(t, r, "/v1/events/evt_1")
+		w.WriteHeader(204)
+	}))
+
+	if err := client.Events.DeleteByID(context.Background(), "evt_1"); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestEventConfirm(t *testing.T) {
 	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		testutil.AssertMethod(t, r, "PUT")

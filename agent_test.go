@@ -26,7 +26,7 @@ func TestAgentCreate(t *testing.T) {
 
 		testutil.RespondJSON(w, 201, map[string]interface{}{
 			"id": "agt_1", "name": "Bot", "type": "ai", "status": "active",
-			"created_at": "2026-04-14T00:00:00Z", "updated_at": "2026-04-14T00:00:00Z",
+			"createdAt": "2026-04-14T00:00:00Z", "updatedAt": "2026-04-14T00:00:00Z",
 		})
 	}))
 
@@ -50,8 +50,8 @@ func TestAgentGet(t *testing.T) {
 		testutil.AssertMethod(t, r, "GET")
 		testutil.AssertPath(t, r, "/v1/agents/agt_1")
 		testutil.RespondJSON(w, 200, map[string]interface{}{
-			"id": "agt_1", "name": "Bot", "type": "ai", "status": "active",
-			"created_at": "2026-04-14T00:00:00Z", "updated_at": "2026-04-14T00:00:00Z",
+			"id": "agt_1", "orgId": "org_1", "name": "Bot", "type": "ai", "status": "active",
+			"createdAt": "2026-04-14T00:00:00Z", "updatedAt": "2026-04-14T00:00:00Z",
 		})
 	}))
 
@@ -62,6 +62,17 @@ func TestAgentGet(t *testing.T) {
 	if agent.ID != "agt_1" {
 		t.Errorf("expected agt_1, got %s", agent.ID)
 	}
+	// Guard the live response shape (camelCase): these deserialized as zero
+	// values when the struct tags were snake_case.
+	if agent.OrgID != "org_1" {
+		t.Errorf("expected orgId org_1, got %q", agent.OrgID)
+	}
+	if agent.CreatedAt.IsZero() {
+		t.Error("expected CreatedAt to deserialize from camelCase createdAt, got zero time")
+	}
+	if agent.UpdatedAt.IsZero() {
+		t.Error("expected UpdatedAt to deserialize from camelCase updatedAt, got zero time")
+	}
 }
 
 func TestAgentUpdate(t *testing.T) {
@@ -71,7 +82,7 @@ func TestAgentUpdate(t *testing.T) {
 		testutil.AssertHasIdempotencyKey(t, r)
 		testutil.RespondJSON(w, 200, map[string]interface{}{
 			"id": "agt_1", "name": "Updated Bot", "type": "ai", "status": "active",
-			"created_at": "2026-04-14T00:00:00Z", "updated_at": "2026-04-14T00:00:00Z",
+			"createdAt": "2026-04-14T00:00:00Z", "updatedAt": "2026-04-14T00:00:00Z",
 		})
 	}))
 
@@ -106,9 +117,9 @@ func TestAgentList(t *testing.T) {
 		testutil.RespondJSON(w, 200, map[string]interface{}{
 			"data": []map[string]interface{}{
 				{"id": "agt_1", "name": "Bot 1", "type": "ai", "status": "active",
-					"created_at": "2026-04-14T00:00:00Z", "updated_at": "2026-04-14T00:00:00Z"},
+					"createdAt": "2026-04-14T00:00:00Z", "updatedAt": "2026-04-14T00:00:00Z"},
 				{"id": "agt_2", "name": "Bot 2", "type": "human", "status": "active",
-					"created_at": "2026-04-14T00:00:00Z", "updated_at": "2026-04-14T00:00:00Z"},
+					"createdAt": "2026-04-14T00:00:00Z", "updatedAt": "2026-04-14T00:00:00Z"},
 			},
 			"total": 2,
 		})
@@ -138,7 +149,7 @@ func TestAgentListCalendars(t *testing.T) {
 	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		testutil.AssertPath(t, r, "/v1/agents/agt_1/calendars")
 		testutil.RespondJSON(w, 200, map[string]interface{}{
-			"data":  []map[string]interface{}{{"id": "cal_1", "name": "Work", "timezone": "UTC", "created_at": "2026-04-14T00:00:00Z", "updated_at": "2026-04-14T00:00:00Z"}},
+			"data":  []map[string]interface{}{{"id": "cal_1", "name": "Work", "timezone": "UTC", "createdAt": "2026-04-14T00:00:00Z", "updatedAt": "2026-04-14T00:00:00Z"}},
 			"total": 1,
 		})
 	}))

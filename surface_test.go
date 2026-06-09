@@ -21,10 +21,10 @@ func TestEventGet_UsesCalendarScopedPath(t *testing.T) {
 		testutil.AssertMethod(t, r, "GET")
 		testutil.AssertPath(t, r, "/v1/calendars/cal_1/events/evt_1")
 		testutil.RespondJSON(w, 200, map[string]interface{}{
-			"id": "evt_1", "calendar_id": "cal_1", "title": "Standup",
-			"start_time": "2026-04-14T09:00:00Z", "end_time": "2026-04-14T09:30:00Z",
-			"all_day": false, "status": "confirmed", "source": "internal",
-			"created_at": "2026-04-14T00:00:00Z", "updated_at": "2026-04-14T00:00:00Z",
+			"id": "evt_1", "calendarId": "cal_1", "orgId": "org_1", "title": "Standup",
+			"startTime": "2026-04-14T09:00:00Z", "endTime": "2026-04-14T09:30:00Z",
+			"allDay": false, "status": "confirmed", "source": "internal",
+			"createdAt": "2026-04-14T00:00:00Z", "updatedAt": "2026-04-14T00:00:00Z",
 		})
 	}))
 
@@ -35,6 +35,20 @@ func TestEventGet_UsesCalendarScopedPath(t *testing.T) {
 	if event.ID != "evt_1" {
 		t.Errorf("expected evt_1, got %s", event.ID)
 	}
+	// Guard the live (camelCase) response shape: these deserialized as empty /
+	// zero values when the struct tags were snake_case.
+	if event.CalendarID != "cal_1" {
+		t.Errorf("expected calendarId cal_1, got %q", event.CalendarID)
+	}
+	if event.OrgID != "org_1" {
+		t.Errorf("expected orgId org_1, got %q", event.OrgID)
+	}
+	if event.StartTime.IsZero() || event.EndTime.IsZero() {
+		t.Error("expected StartTime/EndTime to deserialize from camelCase, got zero time")
+	}
+	if event.CreatedAt.IsZero() || event.UpdatedAt.IsZero() {
+		t.Error("expected CreatedAt/UpdatedAt to deserialize from camelCase, got zero time")
+	}
 }
 
 func TestEventUpdate_UsesCalendarScopedPath(t *testing.T) {
@@ -42,10 +56,10 @@ func TestEventUpdate_UsesCalendarScopedPath(t *testing.T) {
 		testutil.AssertMethod(t, r, "PATCH")
 		testutil.AssertPath(t, r, "/v1/calendars/cal_1/events/evt_1")
 		testutil.RespondJSON(w, 200, map[string]interface{}{
-			"id": "evt_1", "calendar_id": "cal_1", "title": "Renamed",
-			"start_time": "2026-04-14T09:00:00Z", "end_time": "2026-04-14T09:30:00Z",
-			"all_day": false, "status": "confirmed", "source": "internal",
-			"created_at": "2026-04-14T00:00:00Z", "updated_at": "2026-04-14T00:00:00Z",
+			"id": "evt_1", "calendarId": "cal_1", "title": "Renamed",
+			"startTime": "2026-04-14T09:00:00Z", "endTime": "2026-04-14T09:30:00Z",
+			"allDay": false, "status": "confirmed", "source": "internal",
+			"createdAt": "2026-04-14T00:00:00Z", "updatedAt": "2026-04-14T00:00:00Z",
 		})
 	}))
 
@@ -77,10 +91,10 @@ func TestEventGetByID_UsesEventOnlyPath(t *testing.T) {
 		testutil.AssertMethod(t, r, "GET")
 		testutil.AssertPath(t, r, "/v1/events/evt_1")
 		testutil.RespondJSON(w, 200, map[string]interface{}{
-			"id": "evt_1", "calendar_id": "cal_1", "title": "Standup",
-			"start_time": "2026-04-14T09:00:00Z", "end_time": "2026-04-14T09:30:00Z",
-			"all_day": false, "status": "confirmed", "source": "internal",
-			"created_at": "2026-04-14T00:00:00Z", "updated_at": "2026-04-14T00:00:00Z",
+			"id": "evt_1", "calendarId": "cal_1", "orgId": "org_1", "title": "Standup",
+			"startTime": "2026-04-14T09:00:00Z", "endTime": "2026-04-14T09:30:00Z",
+			"allDay": false, "status": "confirmed", "source": "internal",
+			"createdAt": "2026-04-14T00:00:00Z", "updatedAt": "2026-04-14T00:00:00Z",
 		})
 	}))
 
@@ -98,10 +112,10 @@ func TestEventUpdateByID_UsesEventOnlyPath(t *testing.T) {
 		testutil.AssertMethod(t, r, "PATCH")
 		testutil.AssertPath(t, r, "/v1/events/evt_1")
 		testutil.RespondJSON(w, 200, map[string]interface{}{
-			"id": "evt_1", "calendar_id": "cal_1", "title": "Renamed",
-			"start_time": "2026-04-14T09:00:00Z", "end_time": "2026-04-14T09:30:00Z",
-			"all_day": false, "status": "confirmed", "source": "internal",
-			"created_at": "2026-04-14T00:00:00Z", "updated_at": "2026-04-14T00:00:00Z",
+			"id": "evt_1", "calendarId": "cal_1", "title": "Renamed",
+			"startTime": "2026-04-14T09:00:00Z", "endTime": "2026-04-14T09:30:00Z",
+			"allDay": false, "status": "confirmed", "source": "internal",
+			"createdAt": "2026-04-14T00:00:00Z", "updatedAt": "2026-04-14T00:00:00Z",
 		})
 	}))
 
@@ -133,10 +147,10 @@ func TestEventConfirm(t *testing.T) {
 		testutil.AssertMethod(t, r, "PUT")
 		testutil.AssertPath(t, r, "/v1/events/evt_1/confirm")
 		testutil.RespondJSON(w, 200, map[string]interface{}{
-			"id": "evt_1", "calendar_id": "cal_1", "title": "Held",
-			"start_time": "2026-04-14T09:00:00Z", "end_time": "2026-04-14T09:30:00Z",
-			"all_day": false, "status": "confirmed", "source": "internal",
-			"created_at": "2026-04-14T00:00:00Z", "updated_at": "2026-04-14T00:00:00Z",
+			"id": "evt_1", "calendarId": "cal_1", "title": "Held",
+			"startTime": "2026-04-14T09:00:00Z", "endTime": "2026-04-14T09:30:00Z",
+			"allDay": false, "status": "confirmed", "source": "internal",
+			"createdAt": "2026-04-14T00:00:00Z", "updatedAt": "2026-04-14T00:00:00Z",
 		})
 	}))
 
@@ -154,10 +168,10 @@ func TestEventRelease(t *testing.T) {
 		testutil.AssertMethod(t, r, "PUT")
 		testutil.AssertPath(t, r, "/v1/events/evt_1/release")
 		testutil.RespondJSON(w, 200, map[string]interface{}{
-			"id": "evt_1", "calendar_id": "cal_1", "title": "Held",
-			"start_time": "2026-04-14T09:00:00Z", "end_time": "2026-04-14T09:30:00Z",
-			"all_day": false, "status": "cancelled", "source": "internal",
-			"created_at": "2026-04-14T00:00:00Z", "updated_at": "2026-04-14T00:00:00Z",
+			"id": "evt_1", "calendarId": "cal_1", "title": "Held",
+			"startTime": "2026-04-14T09:00:00Z", "endTime": "2026-04-14T09:30:00Z",
+			"allDay": false, "status": "cancelled", "source": "internal",
+			"createdAt": "2026-04-14T00:00:00Z", "updatedAt": "2026-04-14T00:00:00Z",
 		})
 	}))
 
@@ -284,16 +298,16 @@ func TestProposalCreate(t *testing.T) {
 		testutil.AssertPath(t, r, "/v1/scheduling/proposals")
 		testutil.RespondJSON(w, 201, map[string]interface{}{
 			"id": "prp_1", "title": "Sync", "description": nil,
-			"organizer_agent_id":     "agt_1",
-			"participant_agent_ids":  []string{"agt_2"},
-			"calendar_id":            "cal_1",
-			"status":                 "pending",
-			"expires_at":             nil,
-			"resolved_slot":          nil,
-			"created_event_id":       nil,
-			"metadata":               map[string]interface{}{},
-			"created_at":             "2026-04-14T00:00:00Z",
-			"updated_at":             "2026-04-14T00:00:00Z",
+			"organizer_agent_id":    "agt_1",
+			"participant_agent_ids": []string{"agt_2"},
+			"calendar_id":           "cal_1",
+			"status":                "pending",
+			"expires_at":            nil,
+			"resolved_slot":         nil,
+			"created_event_id":      nil,
+			"metadata":              map[string]interface{}{},
+			"created_at":            "2026-04-14T00:00:00Z",
+			"updated_at":            "2026-04-14T00:00:00Z",
 		})
 	}))
 
@@ -487,7 +501,13 @@ func TestPlansList(t *testing.T) {
 		testutil.RespondJSON(w, 200, map[string]interface{}{
 			"plans": []map[string]interface{}{
 				{"id": "free", "name": "Free", "tagline": "Get started",
-					"price": 0, "currency": "usd", "limits": nil,
+					"price": 0, "currency": "usd",
+					"limits": map[string]interface{}{
+						"agents": 3, "calendars": 10, "events": 2500,
+						"api_calls": 50000, "webhook_deliveries": 5000,
+						"availability_queries": 10000, "ical_subscriptions": 5,
+						"proposals": 0, "webhook_endpoints": 3, "scoped_keys": 0,
+					},
 					"display_features": []string{}, "recommended": false},
 			},
 		})
@@ -499,6 +519,17 @@ func TestPlansList(t *testing.T) {
 	}
 	if len(resp.Plans) != 1 {
 		t.Errorf("expected 1 plan, got %d", len(resp.Plans))
+	}
+	// Guard the plan-limit fields that were previously dropped by the SDK model.
+	limits := resp.Plans[0].Limits
+	if limits == nil {
+		t.Fatal("expected non-nil limits")
+	}
+	if limits.WebhookEndpoints == nil || *limits.WebhookEndpoints != 3 {
+		t.Errorf("expected webhook_endpoints 3, got %v", limits.WebhookEndpoints)
+	}
+	if limits.ScopedKeys == nil || *limits.ScopedKeys != 0 {
+		t.Errorf("expected scoped_keys 0, got %v", limits.ScopedKeys)
 	}
 }
 

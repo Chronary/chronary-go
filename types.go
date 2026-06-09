@@ -33,13 +33,14 @@ const (
 // Agent represents a Chronary agent resource.
 type Agent struct {
 	ID          string                 `json:"id"`
+	OrgID       string                 `json:"orgId"`
 	Name        string                 `json:"name"`
 	Type        AgentType              `json:"type"`
 	Description *string                `json:"description"`
 	Status      AgentStatus            `json:"status"`
 	Metadata    map[string]interface{} `json:"metadata"`
-	CreatedAt   time.Time              `json:"created_at"`
-	UpdatedAt   time.Time              `json:"updated_at"`
+	CreatedAt   time.Time              `json:"createdAt"`
+	UpdatedAt   time.Time              `json:"updatedAt"`
 }
 
 // CreateAgentParams are the parameters for creating an agent.
@@ -72,7 +73,7 @@ type ListAgentsParams struct {
 type Calendar struct {
 	ID       string  `json:"id"`
 	OrgID    string  `json:"orgId"`
-	AgentID  *string `json:"agent_id"`
+	AgentID  *string `json:"agentId"`
 	Name     string  `json:"name"`
 	Timezone string  `json:"timezone"`
 	// AgentStatus is the live agent status surfaced on the calendar
@@ -87,8 +88,8 @@ type Calendar struct {
 	DefaultReminders []int                  `json:"default_reminders"`
 	Metadata         map[string]interface{} `json:"metadata"`
 	DeletedAt        *string                `json:"deletedAt"`
-	CreatedAt        time.Time              `json:"created_at"`
-	UpdatedAt        time.Time              `json:"updated_at"`
+	CreatedAt        time.Time              `json:"createdAt"`
+	UpdatedAt        time.Time              `json:"updatedAt"`
 }
 
 // CreateCalendarParams are the parameters for creating a calendar.
@@ -130,6 +131,7 @@ const (
 	EventStatusConfirmed EventStatus = "confirmed"
 	EventStatusTentative EventStatus = "tentative"
 	EventStatusCancelled EventStatus = "cancelled"
+	EventStatusHold      EventStatus = "hold"
 )
 
 // EventSource is the source of a calendar event.
@@ -143,12 +145,13 @@ const (
 // Event represents a Chronary calendar event.
 type Event struct {
 	ID          string      `json:"id"`
-	CalendarID  string      `json:"calendar_id"`
+	CalendarID  string      `json:"calendarId"`
+	OrgID       string      `json:"orgId"`
 	Title       string      `json:"title"`
 	Description *string     `json:"description"`
-	StartTime   time.Time   `json:"start_time"`
-	EndTime     time.Time   `json:"end_time"`
-	AllDay      bool        `json:"all_day"`
+	StartTime   time.Time   `json:"startTime"`
+	EndTime     time.Time   `json:"endTime"`
+	AllDay      bool        `json:"allDay"`
 	Status      EventStatus `json:"status"`
 	Source      EventSource `json:"source"`
 	// Reminders are offsets in minutes before start_time at which an
@@ -157,8 +160,13 @@ type Event struct {
 	// calendar default; an empty slice means no reminders.
 	Reminders []int                  `json:"reminders"`
 	Metadata  map[string]interface{} `json:"metadata"`
-	CreatedAt time.Time              `json:"created_at"`
-	UpdatedAt time.Time              `json:"updated_at"`
+	// HoldExpiresAt and HoldPriority are populated only for temporal-hold
+	// events (status "hold"); nil for regular events.
+	HoldExpiresAt *time.Time `json:"holdExpiresAt"`
+	HoldPriority  *int       `json:"holdPriority"`
+	DeletedAt     *string    `json:"deletedAt"`
+	CreatedAt     time.Time  `json:"createdAt"`
+	UpdatedAt     time.Time  `json:"updatedAt"`
 }
 
 // CreateEventParams are the parameters for creating an event.
@@ -258,7 +266,7 @@ type Webhook struct {
 	Active              bool      `json:"active"`
 	ConsecutiveFailures int       `json:"consecutiveFailures"`
 	FirstFailureAt      *string   `json:"firstFailureAt"`
-	CreatedAt           time.Time `json:"created_at"`
+	CreatedAt           time.Time `json:"createdAt"`
 }
 
 // WebhookCreated is returned from webhook creation and includes the secret.
@@ -671,6 +679,8 @@ type PlanLimits struct {
 	AvailabilityQueries *int `json:"availability_queries"`
 	ICalSubscriptions   *int `json:"ical_subscriptions"`
 	Proposals           *int `json:"proposals"`
+	WebhookEndpoints    *int `json:"webhook_endpoints"`
+	ScopedKeys          *int `json:"scoped_keys"`
 }
 
 // Plan is a single tier in the public plan catalog.

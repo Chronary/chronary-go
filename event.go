@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 )
 
 // EventService handles event-related API operations.
@@ -75,6 +76,19 @@ func (s *EventService) Delete(ctx context.Context, calendarID, eventID string, o
 	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/calendars/%s/events/%s", calendarID, eventID), nil, opts...)
 }
 
+// CancelOccurrence cancels a single occurrence of a recurring series (EXDATE)
+// instead of deleting the whole event. occurrenceStart is the ISO 8601 start
+// of the occurrence to cancel. Returns the updated series master.
+func (s *EventService) CancelOccurrence(ctx context.Context, calendarID, eventID, occurrenceStart string, opts ...RequestOption) (*Event, error) {
+	q := url.Values{"occurrence_start": {occurrenceStart}}
+	var event Event
+	err := s.client.do(ctx, http.MethodDelete, fmt.Sprintf("/v1/calendars/%s/events/%s?%s", calendarID, eventID, q.Encode()), nil, &event, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &event, nil
+}
+
 // GetByID retrieves an event by ID alone. The calendar is resolved internally
 // from the event, so no calendar ID is required.
 func (s *EventService) GetByID(ctx context.Context, eventID string, opts ...RequestOption) (*Event, error) {
@@ -101,6 +115,20 @@ func (s *EventService) UpdateByID(ctx context.Context, eventID string, params *U
 // from the event, so no calendar ID is required.
 func (s *EventService) DeleteByID(ctx context.Context, eventID string, opts ...RequestOption) error {
 	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/events/%s", eventID), nil, opts...)
+}
+
+// CancelOccurrenceByID cancels a single occurrence of a recurring series
+// (EXDATE) by event ID alone. The calendar is resolved internally from the
+// event. occurrenceStart is the ISO 8601 start of the occurrence to cancel.
+// Returns the updated series master.
+func (s *EventService) CancelOccurrenceByID(ctx context.Context, eventID, occurrenceStart string, opts ...RequestOption) (*Event, error) {
+	q := url.Values{"occurrence_start": {occurrenceStart}}
+	var event Event
+	err := s.client.do(ctx, http.MethodDelete, fmt.Sprintf("/v1/events/%s?%s", eventID, q.Encode()), nil, &event, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &event, nil
 }
 
 // Confirm promotes a held event (status="hold") to status="confirmed".

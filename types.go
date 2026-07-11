@@ -164,9 +164,22 @@ type Event struct {
 	// events (status "hold"); nil for regular events.
 	HoldExpiresAt *time.Time `json:"holdExpiresAt"`
 	HoldPriority  *int       `json:"holdPriority"`
-	DeletedAt     *string    `json:"deletedAt"`
-	CreatedAt     time.Time  `json:"createdAt"`
-	UpdatedAt     time.Time  `json:"updatedAt"`
+	// RecurrenceRule is the RFC 5545 RRULE subset (no "RRULE:" prefix) when
+	// this event is a recurring series master, e.g.
+	// "FREQ=WEEKLY;BYDAY=MO,WE;COUNT=12". nil for one-off events.
+	RecurrenceRule *string `json:"recurrenceRule"`
+	// RecurrenceExdates are the ISO 8601 starts of individually cancelled
+	// occurrences (EXDATE) on a recurring series master.
+	RecurrenceExdates []string `json:"recurrenceExdates"`
+	// RecurringEventID is present only on expanded instances (expand=true):
+	// the id of the recurring series master this instance belongs to.
+	RecurringEventID string `json:"recurringEventId,omitempty"`
+	// OriginalStartTime is present only on expanded instances: the occurrence
+	// start this instance was generated for.
+	OriginalStartTime string    `json:"originalStartTime,omitempty"`
+	DeletedAt         *string   `json:"deletedAt"`
+	CreatedAt         time.Time `json:"createdAt"`
+	UpdatedAt         time.Time `json:"updatedAt"`
 }
 
 // CreateEventParams are the parameters for creating an event.
@@ -181,8 +194,12 @@ type CreateEventParams struct {
 	// max 5, each 1–40320 (28 days). Each fires an event.reminder webhook and
 	// shows as a VALARM in the iCal feed. Omit to inherit the calendar default
 	// (then the system default [10]); send an empty slice for no reminders.
-	Reminders []int                  `json:"reminders,omitempty"`
-	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+	Reminders []int `json:"reminders,omitempty"`
+	// RecurrenceRule makes the event a recurring series master. RFC 5545 RRULE
+	// subset without the "RRULE:" prefix, e.g. "FREQ=WEEKLY;BYDAY=MO,WE;COUNT=12".
+	// Not allowed when Status is "hold".
+	RecurrenceRule *string                `json:"recurrence_rule,omitempty"`
+	Metadata       map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // UpdateEventParams are the parameters for updating an event.
@@ -196,8 +213,14 @@ type UpdateEventParams struct {
 	// Reminders replaces the event's reminder schedule. Offsets in minutes
 	// before start_time (e.g. []int{10, 1440}); max 5, each 1–40320 (28 days).
 	// An empty slice clears all reminders.
-	Reminders []int                  `json:"reminders,omitempty"`
-	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+	Reminders []int `json:"reminders,omitempty"`
+	// RecurrenceRule sets or changes the series rule — a full-series edit that
+	// re-anchors the series (RFC 5545 RRULE subset, no "RRULE:" prefix). The
+	// REST API also accepts an explicit JSON null to clear the rule and make
+	// the event one-off; like other nullable update fields this typed struct
+	// only expresses set/change (omitted when nil).
+	RecurrenceRule *string                `json:"recurrence_rule,omitempty"`
+	Metadata       map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // ListEventsParams are the query parameters for listing events.
@@ -208,8 +231,13 @@ type ListEventsParams struct {
 	StartBefore *string      `url:"start_before,omitempty"`
 	Status      *EventStatus `url:"status,omitempty"`
 	Source      *EventSource `url:"source,omitempty"`
-	Limit       int          `url:"limit,omitempty"`
-	Offset      int          `url:"offset,omitempty"`
+	// Expand expands recurring series masters into concrete instances within
+	// the query window. When true the API requires both StartAfter and
+	// StartBefore, at most 366 days apart. Expanded instances carry
+	// RecurringEventID and OriginalStartTime.
+	Expand *bool `url:"expand,omitempty"`
+	Limit  int   `url:"limit,omitempty"`
+	Offset int   `url:"offset,omitempty"`
 }
 
 // --- Availability ---
@@ -376,6 +404,7 @@ type Usage struct {
 	Webhooks             UsageCounter              `json:"webhooks"`
 	AvailabilityQueries  UsageCounter              `json:"availability_queries"`
 	ICalSubscriptions    UsageCounter              `json:"ical_subscriptions"`
+	RecurringEvents      UsageCounter              `json:"recurring_events"`
 	Holds                HoldsUsage                `json:"holds"`
 	CrossCalendarQueries CrossCalendarQueriesUsage `json:"cross_calendar_queries"`
 }

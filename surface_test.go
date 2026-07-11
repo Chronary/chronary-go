@@ -7,6 +7,7 @@ package chronary_test
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"testing"
 
@@ -177,6 +178,204 @@ func TestEventRelease(t *testing.T) {
 
 	if _, err := client.Events.Release(context.Background(), "evt_1"); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// --- Recurring events (#996) ---
+
+func TestEventCreate_SendsRecurrenceRule(t *testing.T) {
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		testutil.AssertMethod(t, r, "POST")
+		testutil.AssertPath(t, r, "/v1/calendars/cal_1/events")
+		var body map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body["recurrence_rule"] != "FREQ=WEEKLY;BYDAY=MO,WE;COUNT=12" {
+			t.Errorf("expected recurrence_rule in request body, got %v", body["recurrence_rule"])
+		}
+		testutil.RespondJSON(w, 201, map[string]interface{}{
+			"id": "evt_1", "calendarId": "cal_1", "orgId": "org_1", "title": "Standup",
+			"startTime": "2026-04-13T09:00:00Z", "endTime": "2026-04-13T09:30:00Z",
+			"allDay": false, "status": "confirmed", "source": "internal",
+			"recurrenceRule": "FREQ=WEEKLY;BYDAY=MO,WE;COUNT=12", "recurrenceExdates": []string{},
+			"createdAt": "2026-04-13T00:00:00Z", "updatedAt": "2026-04-13T00:00:00Z",
+		})
+	}))
+
+	event, err := client.Events.Create(context.Background(), "cal_1", &chronary.CreateEventParams{
+		Title:          "Standup",
+		StartTime:      "2026-04-13T09:00:00Z",
+		EndTime:        "2026-04-13T09:30:00Z",
+		RecurrenceRule: chronary.String("FREQ=WEEKLY;BYDAY=MO,WE;COUNT=12"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if event.RecurrenceRule == nil || *event.RecurrenceRule != "FREQ=WEEKLY;BYDAY=MO,WE;COUNT=12" {
+		t.Errorf("expected recurrenceRule to deserialize, got %v", event.RecurrenceRule)
+	}
+	if event.RecurrenceExdates == nil || len(event.RecurrenceExdates) != 0 {
+		t.Errorf("expected empty recurrenceExdates, got %v", event.RecurrenceExdates)
+	}
+}
+
+func TestEventUpdate_SendsRecurrenceRule(t *testing.T) {
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		testutil.AssertMethod(t, r, "PATCH")
+		testutil.AssertPath(t, r, "/v1/calendars/cal_1/events/evt_1")
+		var body map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body["recurrence_rule"] != "FREQ=DAILY;COUNT=5" {
+			t.Errorf("expected recurrence_rule in request body, got %v", body["recurrence_rule"])
+		}
+		testutil.RespondJSON(w, 200, map[string]interface{}{
+			"id": "evt_1", "calendarId": "cal_1", "title": "Standup",
+			"startTime": "2026-04-13T09:00:00Z", "endTime": "2026-04-13T09:30:00Z",
+			"allDay": false, "status": "confirmed", "source": "internal",
+			"recurrenceRule": "FREQ=DAILY;COUNT=5", "recurrenceExdates": []string{},
+			"createdAt": "2026-04-13T00:00:00Z", "updatedAt": "2026-04-13T00:00:00Z",
+		})
+	}))
+
+	event, err := client.Events.Update(context.Background(), "cal_1", "evt_1", &chronary.UpdateEventParams{
+		RecurrenceRule: chronary.String("FREQ=DAILY;COUNT=5"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if event.RecurrenceRule == nil || *event.RecurrenceRule != "FREQ=DAILY;COUNT=5" {
+		t.Errorf("expected recurrenceRule to deserialize, got %v", event.RecurrenceRule)
+	}
+}
+
+func TestEventList_ExpandQuery(t *testing.T) {
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		testutil.AssertMethod(t, r, "GET")
+		testutil.AssertPath(t, r, "/v1/calendars/cal_1/events")
+		q := r.URL.Query()
+		if q.Get("expand") != "true" {
+			t.Errorf("expected expand=true, got %q", q.Get("expand"))
+		}
+		if q.Get("start_after") == "" || q.Get("start_before") == "" {
+			t.Error("expected start_after and start_before to be sent with expand")
+		}
+		testutil.RespondJSON(w, 200, map[string]interface{}{
+			"data": []map[string]interface{}{
+				{
+					"id": "evt_1", "calendarId": "cal_1", "title": "Standup",
+					"startTime": "2026-04-15T09:00:00Z", "endTime": "2026-04-15T09:30:00Z",
+					"allDay": false, "status": "confirmed", "source": "internal",
+					"recurringEventId":  "evt_1",
+					"originalStartTime": "2026-04-15T09:00:00Z",
+					"createdAt":         "2026-04-13T00:00:00Z", "updatedAt": "2026-04-13T00:00:00Z",
+				},
+			},
+			"total": 1, "limit": 50, "offset": 0,
+		})
+	}))
+
+	events, err := client.Events.List(context.Background(), &chronary.ListEventsParams{
+		CalendarID:  chronary.String("cal_1"),
+		StartAfter:  chronary.String("2026-04-13T00:00:00Z"),
+		StartBefore: chronary.String("2026-05-13T00:00:00Z"),
+		Expand:      chronary.Bool(true),
+	}).Collect(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events))
+	}
+	// Guard the expanded-instance fields.
+	if events[0].RecurringEventID != "evt_1" {
+		t.Errorf("expected recurringEventId evt_1, got %q", events[0].RecurringEventID)
+	}
+	if events[0].OriginalStartTime != "2026-04-15T09:00:00Z" {
+		t.Errorf("expected originalStartTime to deserialize, got %q", events[0].OriginalStartTime)
+	}
+}
+
+func TestEventCancelOccurrence_UsesCalendarScopedPath(t *testing.T) {
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		testutil.AssertMethod(t, r, "DELETE")
+		testutil.AssertPath(t, r, "/v1/calendars/cal_1/events/evt_1")
+		if got := r.URL.Query().Get("occurrence_start"); got != "2026-04-15T09:00:00Z" {
+			t.Errorf("expected occurrence_start query param, got %q", got)
+		}
+		// occurrence-cancel returns 200 with the updated series master (not 204).
+		testutil.RespondJSON(w, 200, map[string]interface{}{
+			"id": "evt_1", "calendarId": "cal_1", "title": "Standup",
+			"startTime": "2026-04-13T09:00:00Z", "endTime": "2026-04-13T09:30:00Z",
+			"allDay": false, "status": "confirmed", "source": "internal",
+			"recurrenceRule":    "FREQ=WEEKLY;BYDAY=MO,WE;COUNT=12",
+			"recurrenceExdates": []string{"2026-04-15T09:00:00Z"},
+			"createdAt":         "2026-04-13T00:00:00Z", "updatedAt": "2026-04-13T00:00:00Z",
+		})
+	}))
+
+	event, err := client.Events.CancelOccurrence(context.Background(), "cal_1", "evt_1", "2026-04-15T09:00:00Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(event.RecurrenceExdates) != 1 || event.RecurrenceExdates[0] != "2026-04-15T09:00:00Z" {
+		t.Errorf("expected cancelled occurrence in recurrenceExdates, got %v", event.RecurrenceExdates)
+	}
+}
+
+func TestEventCancelOccurrenceByID_UsesEventOnlyPath(t *testing.T) {
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		testutil.AssertMethod(t, r, "DELETE")
+		testutil.AssertPath(t, r, "/v1/events/evt_1")
+		if got := r.URL.Query().Get("occurrence_start"); got != "2026-04-15T09:00:00Z" {
+			t.Errorf("expected occurrence_start query param, got %q", got)
+		}
+		testutil.RespondJSON(w, 200, map[string]interface{}{
+			"id": "evt_1", "calendarId": "cal_1", "title": "Standup",
+			"startTime": "2026-04-13T09:00:00Z", "endTime": "2026-04-13T09:30:00Z",
+			"allDay": false, "status": "confirmed", "source": "internal",
+			"recurrenceRule":    "FREQ=WEEKLY;BYDAY=MO,WE;COUNT=12",
+			"recurrenceExdates": []string{"2026-04-15T09:00:00Z"},
+			"createdAt":         "2026-04-13T00:00:00Z", "updatedAt": "2026-04-13T00:00:00Z",
+		})
+	}))
+
+	event, err := client.Events.CancelOccurrenceByID(context.Background(), "evt_1", "2026-04-15T09:00:00Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(event.RecurrenceExdates) != 1 {
+		t.Errorf("expected cancelled occurrence in recurrenceExdates, got %v", event.RecurrenceExdates)
+	}
+}
+
+func TestUsageGet_IncludesRecurringEvents(t *testing.T) {
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		testutil.AssertMethod(t, r, "GET")
+		testutil.AssertPath(t, r, "/v1/usage")
+		testutil.RespondJSON(w, 200, map[string]interface{}{
+			"period_start": "2026-07-01T00:00:00Z", "period_end": "2026-08-01T00:00:00Z",
+			"plan":             "free",
+			"agents":           map[string]interface{}{"used": 1, "limit": 3},
+			"calendars":        map[string]interface{}{"used": 1, "limit": 10},
+			"events":           map[string]interface{}{"used": 5, "limit": 2500},
+			"api_calls":        map[string]interface{}{"used": 100, "limit": 50000},
+			"webhooks":         map[string]interface{}{"used": 0, "limit": 5000},
+			"recurring_events": map[string]interface{}{"used": 2, "limit": 10},
+		})
+	}))
+
+	usage, err := client.Usage.Get(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if usage.RecurringEvents.Used != 2 {
+		t.Errorf("expected recurring_events.used 2, got %d", usage.RecurringEvents.Used)
+	}
+	if usage.RecurringEvents.Limit == nil || *usage.RecurringEvents.Limit != 10 {
+		t.Errorf("expected recurring_events.limit 10, got %v", usage.RecurringEvents.Limit)
 	}
 }
 

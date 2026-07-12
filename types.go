@@ -392,6 +392,14 @@ type CrossCalendarQueriesUsage struct {
 	Used int `json:"used"`
 }
 
+// ScopedKeysUsage counts active agent-scoped keys for the current period. Its
+// server shape uses `count` (not `used`, for backwards-compat with the #308
+// informational shape) and a nullable `limit` (null = unlimited on Scale).
+type ScopedKeysUsage struct {
+	Count int  `json:"count"`
+	Limit *int `json:"limit"`
+}
+
 // Usage is the response from the usage endpoint.
 type Usage struct {
 	PeriodStart          string                    `json:"period_start"`
@@ -402,9 +410,12 @@ type Usage struct {
 	Events               UsageCounter              `json:"events"`
 	APICalls             UsageCounter              `json:"api_calls"`
 	Webhooks             UsageCounter              `json:"webhooks"`
+	WebhookEndpoints     UsageCounter              `json:"webhook_endpoints"`
 	AvailabilityQueries  UsageCounter              `json:"availability_queries"`
 	ICalSubscriptions    UsageCounter              `json:"ical_subscriptions"`
+	Proposals            UsageCounter              `json:"proposals"`
 	RecurringEvents      UsageCounter              `json:"recurring_events"`
+	ScopedKeys           ScopedKeysUsage           `json:"scoped_keys"`
 	Holds                HoldsUsage                `json:"holds"`
 	CrossCalendarQueries CrossCalendarQueriesUsage `json:"cross_calendar_queries"`
 }

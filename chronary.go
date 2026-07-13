@@ -24,6 +24,7 @@ type Client struct {
 	Calendars         *CalendarService
 	Events            *EventService
 	Availability      *AvailabilityService
+	ConnectionLinks   *ConnectionLinksService
 	Webhooks          *WebhookService
 	ICalSubscriptions *ICalSubscriptionService
 	Usage             *UsageService
@@ -80,6 +81,7 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	c.Calendars = &CalendarService{s}
 	c.Events = &EventService{s}
 	c.Availability = &AvailabilityService{s}
+	c.ConnectionLinks = &ConnectionLinksService{s}
 	c.Webhooks = &WebhookService{s}
 	c.ICalSubscriptions = &ICalSubscriptionService{s}
 	c.Usage = &UsageService{s}

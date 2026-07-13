@@ -255,14 +255,37 @@ const (
 
 // AvailabilitySlot represents a single time slot in an availability response.
 type AvailabilitySlot struct {
-	Start     string `json:"start"`
-	End       string `json:"end"`
-	Available bool   `json:"available"`
+	Start string `json:"start"`
+	End   string `json:"end"`
+}
+
+type AvailabilityBusyBlock struct {
+	Start      string `json:"start"`
+	End        string `json:"end"`
+	CalendarID string `json:"calendar_id,omitempty"`
+}
+
+type AvailabilitySources struct {
+	Chronary     string  `json:"chronary"`
+	External     string  `json:"external"`
+	LastSyncedAt *string `json:"last_synced_at"`
+}
+
+type AvailabilityWarning struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
 }
 
 // AvailabilityResponse is the response from availability endpoints.
 type AvailabilityResponse struct {
-	Slots []AvailabilitySlot `json:"slots"`
+	Agents            []string                           `json:"agents,omitempty"`
+	CalendarID        string                             `json:"calendar_id,omitempty"`
+	Slots             []AvailabilitySlot                 `json:"slots"`
+	PerAgentBusy      map[string][]AvailabilityBusyBlock `json:"per_agent_busy,omitempty"`
+	Busy              []AvailabilityBusyBlock            `json:"busy,omitempty"`
+	AvailabilityState string                             `json:"availability_state"`
+	Sources           AvailabilitySources                `json:"sources"`
+	Warnings          []AvailabilityWarning              `json:"warnings"`
 }
 
 // AvailabilityParams are the parameters for single-resource availability queries.
@@ -271,6 +294,7 @@ type AvailabilityParams struct {
 	End          string        `url:"end"`
 	SlotDuration *SlotDuration `url:"slot_duration,omitempty"`
 	IncludeBusy  *bool         `url:"include_busy,omitempty"`
+	AllowStale   *bool         `url:"allow_stale,omitempty"`
 }
 
 // CrossAgentAvailabilityParams are the parameters for cross-agent availability queries.
@@ -281,6 +305,24 @@ type CrossAgentAvailabilityParams struct {
 	SlotDuration *SlotDuration `url:"slot_duration,omitempty"`
 	Calendars    []string      `url:"calendars,omitempty"`
 	IncludeBusy  *bool         `url:"include_busy,omitempty"`
+	AllowStale   *bool         `url:"allow_stale,omitempty"`
+}
+
+// --- Human calendar connection setup links ---
+
+type CreateConnectionLinkParams struct {
+	Capabilities      []string `json:"capabilities"`
+	PublicationPolicy string   `json:"publication_policy,omitempty"`
+}
+
+type ConnectionLink struct {
+	ID           string  `json:"id"`
+	CalendarID   string  `json:"calendar_id"`
+	SetupURL     *string `json:"setup_url,omitempty"`
+	Status       string  `json:"status"`
+	ExpiresAt    string  `json:"expires_at"`
+	ConnectionID *string `json:"connection_id,omitempty"`
+	Reused       bool    `json:"reused,omitempty"`
 }
 
 // --- Webhook ---

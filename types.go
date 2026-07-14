@@ -124,7 +124,7 @@ type ListCalendarsParams struct {
 
 // --- Booking page ---
 
-// BookingPage is a public scheduling link (Calendly-style) for a calendar.
+// BookingPage is a public, hosted scheduling link for a calendar.
 type BookingPage struct {
 	ID          string  `json:"id"`
 	OrgID       string  `json:"org_id"`

@@ -2,6 +2,10 @@
 
 All notable changes to `chronary-go` will be documented in this file starting with the soft-launch release.
 
+## 0.7.0 — 2026-07-14
+
+- Add `BookingPageService` (CRUD) for agent-created public scheduling links, plus a `BookingPages` usage counter (#1036).
+
 ## 0.6.0 — 2026-07-12
 
 - Add `ConnectionLinksService` for create/get/cancel human calendar setup requests.

@@ -122,6 +122,66 @@ type ListCalendarsParams struct {
 	Offset  int     `url:"offset,omitempty"`
 }
 
+// --- Booking page ---
+
+// BookingPage is a public scheduling link (Calendly-style) for a calendar.
+type BookingPage struct {
+	ID          string  `json:"id"`
+	OrgID       string  `json:"org_id"`
+	CalendarID  string  `json:"calendar_id"`
+	AgentID     *string `json:"agent_id"`
+	Slug        string  `json:"slug"`
+	Title       string  `json:"title"`
+	Description *string `json:"description"`
+	// DurationMinutes is the slot length in minutes.
+	DurationMinutes  int    `json:"duration_minutes"`
+	BufferMinutes    int    `json:"buffer_minutes"`
+	WindowDays       int    `json:"window_days"`
+	MinNoticeMinutes int    `json:"min_notice_minutes"`
+	Timezone         string `json:"timezone"`
+	// AvailabilityConstraints is the weekly working-hours restriction; nil = any time in the window.
+	AvailabilityConstraints *WorkingHours `json:"availability_constraints"`
+	Active                  bool          `json:"active"`
+	BookingsCount           int           `json:"bookings_count"`
+	// BookingURL is the public hosted URL to share with humans.
+	BookingURL string    `json:"booking_url"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+// CreateBookingPageParams are the parameters for creating a booking page.
+type CreateBookingPageParams struct {
+	CalendarID              string        `json:"calendar_id"`
+	Title                   string        `json:"title"`
+	Description             string        `json:"description,omitempty"`
+	DurationMinutes         int           `json:"duration_minutes,omitempty"`
+	BufferMinutes           int           `json:"buffer_minutes,omitempty"`
+	WindowDays              int           `json:"window_days,omitempty"`
+	MinNoticeMinutes        int           `json:"min_notice_minutes,omitempty"`
+	Timezone                string        `json:"timezone,omitempty"`
+	AvailabilityConstraints *WorkingHours `json:"availability_constraints,omitempty"`
+	Active                  *bool         `json:"active,omitempty"`
+}
+
+// UpdateBookingPageParams are the parameters for updating a booking page.
+type UpdateBookingPageParams struct {
+	Title                   *string       `json:"title,omitempty"`
+	Description             *string       `json:"description,omitempty"`
+	DurationMinutes         *int          `json:"duration_minutes,omitempty"`
+	BufferMinutes           *int          `json:"buffer_minutes,omitempty"`
+	WindowDays              *int          `json:"window_days,omitempty"`
+	MinNoticeMinutes        *int          `json:"min_notice_minutes,omitempty"`
+	Timezone                *string       `json:"timezone,omitempty"`
+	AvailabilityConstraints *WorkingHours `json:"availability_constraints,omitempty"`
+	Active                  *bool         `json:"active,omitempty"`
+}
+
+// ListBookingPagesParams are the query parameters for listing booking pages.
+type ListBookingPagesParams struct {
+	Limit  int `url:"limit,omitempty"`
+	Offset int `url:"offset,omitempty"`
+}
+
 // --- Event ---
 
 // EventStatus is the status of a calendar event.
@@ -457,6 +517,7 @@ type Usage struct {
 	ICalSubscriptions    UsageCounter              `json:"ical_subscriptions"`
 	Proposals            UsageCounter              `json:"proposals"`
 	RecurringEvents      UsageCounter              `json:"recurring_events"`
+	BookingPages         UsageCounter              `json:"booking_pages"`
 	ScopedKeys           ScopedKeysUsage           `json:"scoped_keys"`
 	Holds                HoldsUsage                `json:"holds"`
 	CrossCalendarQueries CrossCalendarQueriesUsage `json:"cross_calendar_queries"`

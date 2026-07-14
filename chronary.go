@@ -22,6 +22,7 @@ type Client struct {
 	Agents            *AgentService
 	AgentAuth         *AgentAuthService
 	Calendars         *CalendarService
+	BookingPages      *BookingPageService
 	Events            *EventService
 	Availability      *AvailabilityService
 	ConnectionLinks   *ConnectionLinksService
@@ -79,6 +80,7 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	c.Agents = &AgentService{s}
 	c.AgentAuth = &AgentAuthService{s}
 	c.Calendars = &CalendarService{s}
+	c.BookingPages = &BookingPageService{s}
 	c.Events = &EventService{s}
 	c.Availability = &AvailabilityService{s}
 	c.ConnectionLinks = &ConnectionLinksService{s}

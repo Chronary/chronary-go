@@ -35,6 +35,7 @@ type Client struct {
 	Feedback          *FeedbackService
 	Plans             *PlansService
 	Account           *AccountService
+	Billing           *BillingService
 
 	apiKey     string
 	baseURL    string
@@ -93,6 +94,7 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	c.Feedback = &FeedbackService{s}
 	c.Plans = &PlansService{s}
 	c.Account = &AccountService{s}
+	c.Billing = &BillingService{s}
 
 	return c, nil
 }

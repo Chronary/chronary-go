@@ -41,6 +41,9 @@ type Agent struct {
 	Metadata    map[string]interface{} `json:"metadata"`
 	CreatedAt   time.Time              `json:"createdAt"`
 	UpdatedAt   time.Time              `json:"updatedAt"`
+	// CalendarCount and ScopedKeyCount are set only by List with IncludeCounts.
+	CalendarCount  *int `json:"calendar_count,omitempty"`
+	ScopedKeyCount *int `json:"scoped_key_count,omitempty"`
 }
 
 // CreateAgentParams are the parameters for creating an agent.
@@ -60,11 +63,20 @@ type UpdateAgentParams struct {
 }
 
 // ListAgentsParams are the query parameters for listing agents.
+// Decommissioned (deleted) agents are left out unless IncludeDecommissioned
+// is true or Status is set.
 type ListAgentsParams struct {
 	Type   *AgentType   `url:"type,omitempty"`
 	Status *AgentStatus `url:"status,omitempty"`
-	Limit  int          `url:"limit,omitempty"`
-	Offset int          `url:"offset,omitempty"`
+	// Q matches a case-insensitive substring of the agent name, or an exact agent ID.
+	Q string `url:"q,omitempty"`
+	// Sort is "created_at" (default, newest first) or "name" (A to Z).
+	Sort                  string `url:"sort,omitempty"`
+	IncludeDecommissioned bool   `url:"include_decommissioned,omitempty"`
+	// IncludeCounts adds CalendarCount and ScopedKeyCount to each agent.
+	IncludeCounts bool `url:"include_counts,omitempty"`
+	Limit         int  `url:"limit,omitempty"`
+	Offset        int  `url:"offset,omitempty"`
 }
 
 // --- Calendar ---
@@ -118,8 +130,10 @@ type UpdateCalendarParams struct {
 type ListCalendarsParams struct {
 	AgentID *string `url:"agent_id,omitempty"`
 	Include *string `url:"include,omitempty"`
-	Limit   int     `url:"limit,omitempty"`
-	Offset  int     `url:"offset,omitempty"`
+	// Q is a case-insensitive substring of the calendar name, or an exact calendar ID.
+	Q      *string `url:"q,omitempty"`
+	Limit  int     `url:"limit,omitempty"`
+	Offset int     `url:"offset,omitempty"`
 }
 
 // --- Booking page ---
@@ -180,6 +194,41 @@ type UpdateBookingPageParams struct {
 type ListBookingPagesParams struct {
 	Limit  int `url:"limit,omitempty"`
 	Offset int `url:"offset,omitempty"`
+	// CalendarID lists only the pages bound to this calendar.
+	CalendarID *string `url:"calendar_id,omitempty"`
+}
+
+// Booking is a booking made through a booking page: the event it created plus
+// the invitee's details from the booking form.
+type Booking struct {
+	// ID is the event the booking created.
+	ID            string    `json:"id"`
+	BookingPageID string    `json:"booking_page_id"`
+	CalendarID    string    `json:"calendar_id"`
+	StartTime     time.Time `json:"start_time"`
+	EndTime       time.Time `json:"end_time"`
+	// Status is the event status, e.g. "confirmed", or "cancelled" once cancelled.
+	Status       string  `json:"status"`
+	InviteeName  *string `json:"invitee_name"`
+	InviteeEmail *string `json:"invitee_email"`
+	InviteeNotes *string `json:"invitee_notes"`
+	// CreatedAt is when the booking was made.
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// ListBookingsParams are the query parameters for listing a booking page's bookings.
+type ListBookingsParams struct {
+	// Limit is the page size (1-100, default 50).
+	Limit int `url:"limit,omitempty"`
+	// Cursor is the NextCursor from the previous page.
+	Cursor *string `url:"cursor,omitempty"`
+}
+
+// BookingList is one page of bookings.
+type BookingList struct {
+	Data []Booking `json:"data"`
+	// NextCursor is passed as ListBookingsParams.Cursor for the next page; nil on the last page.
+	NextCursor *string `json:"next_cursor"`
 }
 
 // --- Event ---
@@ -300,6 +349,26 @@ type ListEventsParams struct {
 	Offset int   `url:"offset,omitempty"`
 }
 
+// ListOrgEventsParams filters Events.ListAll: events across all of the
+// organization's calendars (GET /v1/events).
+type ListOrgEventsParams struct {
+	// CalendarIDs narrows to these calendars (at most 50), sent as repeated
+	// calendar_id parameters.
+	CalendarIDs []string     `url:"-"`
+	AgentID     *string      `url:"agent_id,omitempty"`
+	StartAfter  *string      `url:"start_after,omitempty"`
+	StartBefore *string      `url:"start_before,omitempty"`
+	Status      *EventStatus `url:"status,omitempty"`
+	Source      *EventSource `url:"source,omitempty"`
+	// Q searches titles case-insensitively. It requires StartAfter and
+	// StartBefore at most 31 days apart.
+	Q      *string `url:"q,omitempty"`
+	Expand *bool   `url:"expand,omitempty"`
+	// Limit is at most 100.
+	Limit  int `url:"limit,omitempty"`
+	Offset int `url:"offset,omitempty"`
+}
+
 // --- Availability ---
 
 // SlotDuration is the duration of an availability slot.
@@ -383,20 +452,110 @@ type ConnectionLink struct {
 	ExpiresAt    string  `json:"expires_at"`
 	ConnectionID *string `json:"connection_id,omitempty"`
 	Reused       bool    `json:"reused,omitempty"`
+	// Setup details (#1196).
+	RequestingAgentID          *string  `json:"requesting_agent_id,omitempty"`
+	RequestedCapabilities      []string `json:"requested_capabilities,omitempty"`
+	RequestedPublicationPolicy *string  `json:"requested_publication_policy,omitempty"`
+	CreatedAt                  string   `json:"created_at,omitempty"`
+}
+
+// ListConnectionLinksParams filters ConnectionLinks.List.
+type ListConnectionLinksParams struct {
+	// Status is awaiting_human, in_progress, completed, declined, expired or cancelled.
+	Status     string
+	CalendarID string
+	// Limit is 1–100; the API defaults to 50.
+	Limit int
+}
+
+// ConnectionLinkList is the ConnectionLinks.List response.
+type ConnectionLinkList struct {
+	Data []ConnectionLink `json:"data"`
 }
 
 // --- Webhook ---
 
 // Webhook represents a Chronary webhook subscription.
 type Webhook struct {
-	ID                  string    `json:"id"`
-	OrgID               string    `json:"orgId"`
-	URL                 string    `json:"url"`
-	Events              []string  `json:"events"`
-	Active              bool      `json:"active"`
-	ConsecutiveFailures int       `json:"consecutiveFailures"`
-	FirstFailureAt      *string   `json:"firstFailureAt"`
-	CreatedAt           time.Time `json:"createdAt"`
+	ID                  string   `json:"id"`
+	OrgID               string   `json:"orgId"`
+	URL                 string   `json:"url"`
+	Events              []string `json:"events"`
+	Active              bool     `json:"active"`
+	ConsecutiveFailures int      `json:"consecutiveFailures"`
+	FirstFailureAt      *string  `json:"firstFailureAt"`
+	// DeletionPausedAt is set while a scheduled account deletion has paused
+	// this endpoint (Active is then false).
+	DeletionPausedAt *string `json:"deletionPausedAt,omitempty"`
+	// DeactivatedAt is when the endpoint last went inactive; nil while it is
+	// active. Cleared when it is re-enabled.
+	DeactivatedAt *string `json:"deactivatedAt,omitempty"`
+	// DeactivatedReason is why the endpoint is inactive (one of the
+	// WebhookDeactivated* constants); nil while it is active.
+	DeactivatedReason *string `json:"deactivatedReason,omitempty"`
+	// PreviousSecretExpiresAt is set while a secret rotation's grace window is
+	// open: when the replaced secret stops working. Until then deliveries also
+	// carry X-Signature-Previous. Nil when no window is open.
+	PreviousSecretExpiresAt *string   `json:"previousSecretExpiresAt,omitempty"`
+	CreatedAt               time.Time `json:"createdAt"`
+}
+
+// Reasons a webhook endpoint is inactive (Webhook.DeactivatedReason).
+const (
+	WebhookDeactivatedManual               = "manual"
+	WebhookDeactivatedCircuitBreaker       = "circuit_breaker"
+	WebhookDeactivatedUnsafeDestinationURL = "unsafe_destination_url"
+	WebhookDeactivatedAccountDeletion      = "account_deletion"
+)
+
+// SendTestWebhookParams selects the sample payload Webhooks.SendTest sends.
+// The endpoint must subscribe to EventType.
+type SendTestWebhookParams struct {
+	EventType string `json:"event_type"`
+}
+
+// WebhookTestSent is the queued test delivery Webhooks.SendTest returns.
+type WebhookTestSent struct {
+	DeliveryID string `json:"delivery_id"`
+	WebhookID  string `json:"webhook_id"`
+	EventType  string `json:"event_type"`
+	Status     string `json:"status"`
+	IsTest     bool   `json:"is_test"`
+}
+
+// WebhookReplaySent is the new delivery Webhooks.ReplayDelivery queued.
+type WebhookReplaySent struct {
+	// DeliveryID is the new delivery; poll GetDelivery with it.
+	DeliveryID string `json:"delivery_id"`
+	WebhookID  string `json:"webhook_id"`
+	EventType  string `json:"event_type"`
+	Status     string `json:"status"`
+	// ReplayOfDeliveryID is the first delivery of the chain, sent as the
+	// X-Chronary-Replay-Of header.
+	ReplayOfDeliveryID string `json:"replay_of_delivery_id"`
+}
+
+// When the replaced secret stops working after Webhooks.RotateSecret
+// (RotateWebhookSecretParams.ExpireOldIn).
+const (
+	WebhookSecretExpireNow = "now"
+	WebhookSecretExpire1h  = "1h"
+	WebhookSecretExpire24h = "24h"
+	WebhookSecretExpire7d  = "7d"
+)
+
+// RotateWebhookSecretParams configures Webhooks.RotateSecret. An empty
+// ExpireOldIn uses the API default, 24h.
+type RotateWebhookSecretParams struct {
+	ExpireOldIn string `json:"expire_old_in,omitempty"`
+}
+
+// RotatedWebhookSecret is the new signing secret Webhooks.RotateSecret returns
+// once. PreviousSecretExpiresAt is nil when ExpireOldIn was "now".
+type RotatedWebhookSecret struct {
+	WebhookID               string  `json:"webhook_id"`
+	Secret                  string  `json:"secret"`
+	PreviousSecretExpiresAt *string `json:"previous_secret_expires_at"`
 }
 
 // WebhookCreated is returned from webhook creation and includes the secret.
@@ -477,14 +636,15 @@ type UsageCounter struct {
 }
 
 // HoldsUsage holds the temporal-hold lifecycle counters for the current
-// period. Informational — not gated by any plan limit. The funnel identity
-// `created = confirmed + expired + active` holds, where `active` is
-// derived (not stored). Counts cover all three end-of-hold paths: TTL
-// expiry, manual release, and priority-bump.
+// period. Informational — not gated by any plan limit. Created, Confirmed
+// and Expired are monthly counters; Expired covers all three end-of-hold
+// paths: TTL expiry, manual release, and priority-bump. Active is a live
+// count of unexpired holds, not a monthly counter.
 type HoldsUsage struct {
 	Created   int `json:"created"`
 	Confirmed int `json:"confirmed"`
 	Expired   int `json:"expired"`
+	Active    int `json:"active"`
 }
 
 // CrossCalendarQueriesUsage counts availability requests that touched more
@@ -506,6 +666,8 @@ type ScopedKeysUsage struct {
 type Usage struct {
 	PeriodStart          string                    `json:"period_start"`
 	PeriodEnd            string                    `json:"period_end"`
+	ResetsAt             string                    `json:"resets_at"`
+	GeneratedAt          string                    `json:"generated_at"`
 	Plan                 string                    `json:"plan"`
 	Agents               UsageCounter              `json:"agents"`
 	Calendars            UsageCounter              `json:"calendars"`
@@ -521,6 +683,49 @@ type Usage struct {
 	ScopedKeys           ScopedKeysUsage           `json:"scoped_keys"`
 	Holds                HoldsUsage                `json:"holds"`
 	CrossCalendarQueries CrossCalendarQueriesUsage `json:"cross_calendar_queries"`
+}
+
+// UsageHistoryMetrics holds the monthly counter totals for one UTC calendar month.
+type UsageHistoryMetrics struct {
+	APICalls             int `json:"api_calls"`
+	Events               int `json:"events"`
+	WebhookDeliveries    int `json:"webhook_deliveries"`
+	AvailabilityQueries  int `json:"availability_queries"`
+	Proposals            int `json:"proposals"`
+	HoldsCreated         int `json:"holds_created"`
+	HoldsConfirmed       int `json:"holds_confirmed"`
+	HoldsExpired         int `json:"holds_expired"`
+	CrossCalendarQueries int `json:"cross_calendar_queries"`
+}
+
+// UsageHistoryMonth is one UTC calendar month of usage history.
+type UsageHistoryMonth struct {
+	// Period is the UTC calendar month, YYYY-MM.
+	Period      string `json:"period"`
+	PeriodStart string `json:"period_start"`
+	PeriodEnd   string `json:"period_end"`
+	// IsCurrent is true only for the current, partial month (the last entry).
+	IsCurrent bool                `json:"is_current"`
+	Metrics   UsageHistoryMetrics `json:"metrics"`
+}
+
+// UsageHistoryLimits holds the current plan's limits for the limited monthly
+// metrics. A nil limit means unlimited. Historical limits are not recorded.
+type UsageHistoryLimits struct {
+	APICalls            *int `json:"api_calls"`
+	Events              *int `json:"events"`
+	WebhookDeliveries   *int `json:"webhook_deliveries"`
+	AvailabilityQueries *int `json:"availability_queries"`
+	Proposals           *int `json:"proposals"`
+}
+
+// UsageHistory is the response from the usage history endpoint: monthly
+// totals, oldest month first, ending with the current month.
+type UsageHistory struct {
+	Plan   string              `json:"plan"`
+	Months int                 `json:"months"`
+	Limits UsageHistoryLimits  `json:"limits"`
+	Data   []UsageHistoryMonth `json:"data"`
 }
 
 // --- Webhook Event ---
@@ -548,6 +753,13 @@ const (
 	WebhookEventProposalExpired    WebhookEventType = "proposal.expired"
 	WebhookEventProposalCancelled  WebhookEventType = "proposal.cancelled"
 	WebhookEventWebhookDeactivated WebhookEventType = "webhook.deactivated"
+	WebhookEventOrgPlanChanged     WebhookEventType = "org.plan_changed"
+	// WebhookEventCalendarConnectionReauthorizationRequired fires once when a
+	// connected human calendar stops accepting access (#1196).
+	WebhookEventCalendarConnectionReauthorizationRequired WebhookEventType = "calendar_connection.reauthorization_required"
+	// WebhookEventUsageThresholdCrossed fires once per metric, period and
+	// threshold (50, 80, 90, 95 or 100 percent) of a monthly usage limit (#1211).
+	WebhookEventUsageThresholdCrossed WebhookEventType = "usage.threshold_crossed"
 )
 
 // WebhookEventTypes is the full, ordered set of webhook event types — kept in
@@ -560,7 +772,9 @@ var WebhookEventTypes = []WebhookEventType{
 	WebhookEventEventHoldReleased, WebhookEventEventHoldConfirmed,
 	WebhookEventProposalCreated, WebhookEventProposalResponded, WebhookEventProposalConfirmed,
 	WebhookEventProposalExpired, WebhookEventProposalCancelled,
-	WebhookEventWebhookDeactivated,
+	WebhookEventWebhookDeactivated, WebhookEventOrgPlanChanged,
+	WebhookEventCalendarConnectionReauthorizationRequired,
+	WebhookEventUsageThresholdCrossed,
 }
 
 // WebhookEvent represents a parsed webhook delivery payload.
@@ -640,19 +854,81 @@ const (
 	WebhookDeliveryPending   WebhookDeliveryStatus = "pending"
 	WebhookDeliveryDelivered WebhookDeliveryStatus = "delivered"
 	WebhookDeliveryFailed    WebhookDeliveryStatus = "failed"
+	// WebhookDeliveryDropped is a delivery the Free plan monthly limit
+	// stopped: never sent, counted or retried; LastErrorCode is
+	// "quota_exceeded".
+	WebhookDeliveryDropped WebhookDeliveryStatus = "dropped"
 )
 
 // WebhookDelivery is a single delivery attempt for a webhook subscription.
 type WebhookDelivery struct {
-	ID             string                 `json:"id"`
-	SubscriptionID string                 `json:"subscription_id"`
-	EventType      string                 `json:"event_type"`
-	Status         WebhookDeliveryStatus  `json:"status"`
-	Attempts       int                    `json:"attempts"`
-	LastAttemptAt  *string                `json:"last_attempt_at"`
-	NextRetryAt    *string                `json:"next_retry_at"`
-	CreatedAt      string                 `json:"created_at"`
-	Payload        map[string]interface{} `json:"payload,omitempty"`
+	ID             string                `json:"id"`
+	SubscriptionID string                `json:"subscription_id"`
+	EventType      string                `json:"event_type"`
+	Status         WebhookDeliveryStatus `json:"status"`
+	Attempts       int                   `json:"attempts"`
+	LastAttemptAt  *string               `json:"last_attempt_at"`
+	NextRetryAt    *string               `json:"next_retry_at"`
+	CreatedAt      string                `json:"created_at"`
+	// LastResponseStatus is the HTTP status of the most recent attempt; nil
+	// when no response was received.
+	LastResponseStatus *int `json:"last_response_status"`
+	// LastErrorCode is why the most recent attempt failed; nil on success.
+	LastErrorCode *string `json:"last_error_code"`
+	// LastDurationMs is the most recent attempt's time to response headers.
+	LastDurationMs *int `json:"last_duration_ms"`
+	// IsTest is true for a test event sent with Webhooks.SendTest.
+	IsTest bool `json:"is_test"`
+	// ReplayOfDeliveryID is set on a replay sent with Webhooks.ReplayDelivery:
+	// the first delivery of the chain, the original even when a replay is
+	// replayed. Nil otherwise.
+	ReplayOfDeliveryID *string                `json:"replay_of_delivery_id"`
+	Payload            map[string]interface{} `json:"payload,omitempty"`
+}
+
+// Webhook attempt error codes. A delivery's LastErrorCode may also be
+// "endpoint_disabled" or "quota_exceeded".
+const (
+	WebhookAttemptErrorTimeout              = "timeout"
+	WebhookAttemptErrorConnection           = "connection_error"
+	WebhookAttemptErrorTLS                  = "tls_error"
+	WebhookAttemptErrorRedirectNotFollowed  = "redirect_not_followed"
+	WebhookAttemptErrorUnsafeDestinationURL = "unsafe_destination_url"
+	WebhookAttemptErrorNon2xx               = "non_2xx"
+)
+
+// WebhookDeliveryAttempt is one HTTP attempt of a webhook delivery.
+type WebhookDeliveryAttempt struct {
+	ID             string  `json:"id"`
+	AttemptNumber  int     `json:"attempt_number"`
+	StartedAt      string  `json:"started_at"`
+	DurationMs     *int    `json:"duration_ms"`
+	ResponseStatus *int    `json:"response_status"`
+	ResponseBody   *string `json:"response_body"`
+	ErrorCode      *string `json:"error_code"`
+}
+
+// WebhookDeliveryDetail is one webhook delivery with its payload and every
+// attempt, oldest first.
+type WebhookDeliveryDetail struct {
+	ID                 string                   `json:"id"`
+	SubscriptionID     string                   `json:"subscription_id"`
+	EventType          string                   `json:"event_type"`
+	Status             WebhookDeliveryStatus    `json:"status"`
+	Attempts           int                      `json:"attempts"`
+	MaxAttempts        int                      `json:"max_attempts"`
+	LastAttemptAt      *string                  `json:"last_attempt_at"`
+	NextRetryAt        *string                  `json:"next_retry_at"`
+	CreatedAt          string                   `json:"created_at"`
+	LastResponseStatus *int                     `json:"last_response_status"`
+	LastErrorCode      *string                  `json:"last_error_code"`
+	LastDurationMs     *int                     `json:"last_duration_ms"`
+	IsTest             bool                     `json:"is_test"`
+	ReplayOfDeliveryID *string                  `json:"replay_of_delivery_id"`
+	Payload            interface{}              `json:"payload"`
+	PayloadRedacted    bool                     `json:"payload_redacted"`
+	RequestHeaders     map[string]string        `json:"request_headers"`
+	AttemptLog         []WebhookDeliveryAttempt `json:"attempt_log"`
 }
 
 // WebhookDeliveryStats is the rollup returned alongside a deliveries list.
@@ -660,15 +936,21 @@ type WebhookDeliveryStats struct {
 	Pending   int `json:"pending"`
 	Delivered int `json:"delivered"`
 	Failed    int `json:"failed"`
+	// Dropped counts deliveries the Free plan monthly limit stopped.
+	Dropped int `json:"dropped"`
 }
 
 // WebhookDeliveryListResponse is the response from listing webhook deliveries.
 type WebhookDeliveryListResponse struct {
-	Data   []WebhookDelivery    `json:"data"`
-	Total  int                  `json:"total"`
-	Limit  int                  `json:"limit"`
-	Offset int                  `json:"offset"`
-	Stats  WebhookDeliveryStats `json:"stats"`
+	Data []WebhookDelivery `json:"data"`
+	// Total counts deliveries matching the filters, ignoring Cursor and Offset.
+	Total  int `json:"total"`
+	Limit  int `json:"limit"`
+	Offset int `json:"offset"`
+	// NextCursor is passed as Cursor for the next page; nil on the last page.
+	NextCursor *string              `json:"next_cursor"`
+	HasMore    bool                 `json:"has_more"`
+	Stats      WebhookDeliveryStats `json:"stats"`
 }
 
 // ListWebhookDeliveriesParams are query parameters for listing webhook deliveries.
@@ -676,7 +958,19 @@ type ListWebhookDeliveriesParams struct {
 	Status         *WebhookDeliveryStatus `url:"status,omitempty"`
 	IncludePayload *bool                  `url:"include_payload,omitempty"`
 	Limit          int                    `url:"limit,omitempty"`
-	Offset         int                    `url:"offset,omitempty"`
+	// Offset cannot be combined with Cursor.
+	Offset int `url:"offset,omitempty"`
+	// EventType is an exact type ("event.created") or a prefix ending in a
+	// dot ("event.").
+	EventType *string `url:"event_type,omitempty"`
+	// CreatedAfter (inclusive) and CreatedBefore (exclusive) are ISO 8601 UTC.
+	CreatedAfter  *string `url:"created_after,omitempty"`
+	CreatedBefore *string `url:"created_before,omitempty"`
+	DeliveryID    *string `url:"delivery_id,omitempty"`
+	// IsTest true lists only test events; false leaves them out.
+	IsTest *bool `url:"is_test,omitempty"`
+	// Cursor is the NextCursor of the previous page.
+	Cursor *string `url:"cursor,omitempty"`
 }
 
 // --- Scheduling proposals ---
@@ -685,7 +979,10 @@ type ListWebhookDeliveriesParams struct {
 type ProposalStatus string
 
 const (
-	ProposalStatusPending   ProposalStatus = "pending"
+	ProposalStatusPending ProposalStatus = "pending"
+	// ProposalStatusResolving is the brief state while a resolve creates the
+	// event; it returns to pending if the resolve fails.
+	ProposalStatusResolving ProposalStatus = "resolving"
 	ProposalStatusConfirmed ProposalStatus = "confirmed"
 	ProposalStatusExpired   ProposalStatus = "expired"
 	ProposalStatusCancelled ProposalStatus = "cancelled"
@@ -795,6 +1092,17 @@ type ScopedAPIKey struct {
 	AgentID   string  `json:"agent_id"`
 	Label     *string `json:"label"`
 	CreatedAt string  `json:"created_at"`
+	// LastUsedAt is approximate (updated at most every 5 minutes); nil if never used.
+	LastUsedAt        *string `json:"last_used_at"`
+	LastUsedUserAgent *string `json:"last_used_user_agent"`
+	// CreatedVia is one of signup, console, api, mcp or unknown.
+	CreatedVia string `json:"created_via"`
+	// CreatedByKeyPrefix is the creating Organization key's prefix (api and mcp).
+	CreatedByKeyPrefix *string `json:"created_by_key_prefix"`
+	// Note is a free-text note about the key, set in the console.
+	Note *string `json:"note"`
+	// ExpiresAt is when the key stops working (401 key_expired); nil = never expires.
+	ExpiresAt *string `json:"expires_at"`
 }
 
 // CreatedScopedAPIKey is the response from POST /v1/keys; includes the full key string.
@@ -808,6 +1116,8 @@ type CreatedScopedAPIKey struct {
 type CreateScopedAPIKeyParams struct {
 	AgentID string  `json:"agent_id"`
 	Label   *string `json:"label,omitempty"`
+	// ExpiresIn is one of 30d, 60d, 90d, 180d or 365d; nil = the key never expires.
+	ExpiresIn *string `json:"expires_in,omitempty"`
 }
 
 // --- Plans (public catalog) ---
@@ -833,6 +1143,7 @@ type Plan struct {
 	Tagline         string      `json:"tagline"`
 	Price           *int        `json:"price"`
 	Currency        *string     `json:"currency"`
+	AnnualPrice     *int        `json:"annual_price,omitempty"`
 	Limits          *PlanLimits `json:"limits"`
 	DisplayFeatures []string    `json:"display_features"`
 	Recommended     bool        `json:"recommended"`
@@ -877,8 +1188,13 @@ type AgentVerifyParams struct {
 
 // AgentVerifyResponse is the response from POST /v1/agent/verify.
 type AgentVerifyResponse struct {
-	Verified bool   `json:"verified"`
-	Message  string `json:"message"`
+	Verified bool `json:"verified"`
+	// SandboxPromotion is "promoted" when the org left the Sandbox tier,
+	// "capacity_full" when the email is verified but early access is full (the
+	// org keeps Sandbox limits until a spot opens), or nil when the org was not
+	// on Sandbox.
+	SandboxPromotion *string `json:"sandbox_promotion"`
+	Message          string  `json:"message"`
 }
 
 // --- Feedback ---
@@ -890,6 +1206,7 @@ const (
 	FeedbackTypeBug      FeedbackType = "bug"
 	FeedbackTypeFeature  FeedbackType = "feature"
 	FeedbackTypeFriction FeedbackType = "friction"
+	FeedbackTypeSupport  FeedbackType = "support"
 )
 
 // SubmitFeedbackParams are the parameters for POST /v1/feedback.
@@ -913,7 +1230,15 @@ type AuditLogEntry struct {
 	// Action is the event identifier, e.g. "agent.create" or "auth.signin".
 	Action string `json:"action"`
 	// ActorKeyPrefix holds the first 20 chars of the actor API key (never the full key).
+	// Nil for console sessions and the system.
 	ActorKeyPrefix *string `json:"actor_key_prefix"`
+	// ActorType is who acted: "session", "org_key", "agent_key" or "system".
+	// Nil on older entries that could not be attributed.
+	ActorType *string `json:"actor_type"`
+	// ActorID is the API key id for a key, the organization id for a console session.
+	ActorID *string `json:"actor_id"`
+	// ActorLabel is the key label (or key prefix), the session email, or "Chronary".
+	ActorLabel *string `json:"actor_label"`
 	// AgentID is set when the actor used a per-agent chr_ak_* key.
 	AgentID *string `json:"agent_id"`
 	// Resource contains entity IDs extracted from the path (e.g. "agt_1/cal_2").
@@ -937,8 +1262,120 @@ type AuditLogPagination struct {
 type AuditLogListResponse struct {
 	Data       []AuditLogEntry    `json:"data"`
 	Pagination AuditLogPagination `json:"pagination"`
-	// RetentionDays is the plan's audit-log retention window (days). Nil = unlimited.
+	// RetentionDays is the plan's audit-log retention window (days). Nil = no fixed window (Custom: per contract).
 	RetentionDays *int `json:"retention_days"`
 	// RangeClamped is true when the requested from-date was outside the retention window.
 	RangeClamped bool `json:"range_clamped"`
+}
+
+// --- Billing ---
+
+// BillingPrice is the org's current subscription price. Amount is in minor
+// units (2900 = $29).
+type BillingPrice struct {
+	Amount       int    `json:"amount"`
+	Currency     string `json:"currency"`
+	Interval     string `json:"interval"`
+	TaxExclusive bool   `json:"tax_exclusive"`
+}
+
+// BillingUpgradeOption is a plan/interval a human can upgrade to.
+type BillingUpgradeOption struct {
+	Plan             string `json:"plan"`
+	Interval         string `json:"interval"`
+	Amount           int    `json:"amount"`
+	Currency         string `json:"currency"`
+	SavingsVsMonthly int    `json:"savings_vs_monthly"`
+	Via              string `json:"via,omitempty"`
+}
+
+// UpgradeRequest is an agent-initiated request for a human to upgrade the
+// account. Status is one of pending, completed, declined, canceled, expired.
+type UpgradeRequest struct {
+	ID       string `json:"id"`
+	Status   string `json:"status"`
+	Plan     string `json:"plan"`
+	Interval string `json:"interval"`
+	// Reason is agent free text; render it as escaped plain text only.
+	Reason  *string `json:"reason"`
+	Feature *string `json:"feature"`
+	Metric  *string `json:"metric"`
+	// RequestedVia is "api" or "mcp".
+	RequestedVia string `json:"requested_via"`
+	// RequestedByKeyPrefix is the first 20 chars of the requesting key.
+	RequestedByKeyPrefix *string `json:"requested_by_key_prefix"`
+	// ApprovalURL is the link to give your human. Nil once the request is terminal.
+	ApprovalURL *string `json:"approval_url"`
+	CreatedAt   string  `json:"created_at"`
+	ExpiresAt   string  `json:"expires_at"`
+	CompletedAt *string `json:"completed_at"`
+	DeclinedAt  *string `json:"declined_at"`
+	CanceledAt  *string `json:"canceled_at"`
+	// OwnerNotification and Reused are set on create responses only.
+	OwnerNotification string `json:"owner_notification,omitempty"`
+	Reused            bool   `json:"reused,omitempty"`
+}
+
+// BillingSummary is the read-only billing state of the org.
+type BillingSummary struct {
+	Plan                string                 `json:"plan"`
+	PlanSource          *string                `json:"plan_source"`
+	PlanExpiresAt       *string                `json:"plan_expires_at"`
+	Status              *string                `json:"status"`
+	Interval            *string                `json:"interval"`
+	CurrentPeriodEnd    *string                `json:"current_period_end"`
+	CancelAt            *string                `json:"cancel_at"`
+	CancelAtPeriodEnd   bool                   `json:"cancel_at_period_end"`
+	RenewsAt            *string                `json:"renews_at"`
+	PendingPlan         *string                `json:"pending_plan,omitempty"`
+	PendingPlanInterval *string                `json:"pending_plan_interval,omitempty"`
+	PendingPlanAt       *string                `json:"pending_plan_at,omitempty"`
+	Price               *BillingPrice          `json:"price"`
+	HasBillingAccount   bool                   `json:"has_billing_account"`
+	SelfServeUpgrade    bool                   `json:"self_serve_upgrade"`
+	UpgradeOptions      []BillingUpgradeOption `json:"upgrade_options"`
+	UpgradeURL          *string                `json:"upgrade_url"`
+	ManageURL           string                 `json:"manage_url"`
+	ContactURL          *string                `json:"contact_url"`
+	// PendingUpgradeRequest is set only on Billing.Get.
+	PendingUpgradeRequest *UpgradeRequest `json:"pending_upgrade_request"`
+	Offer                 interface{}     `json:"offer"`
+	// PastDue is set while Status is past_due: the failed payment.
+	PastDue *BillingPastDue `json:"past_due"`
+	// Credit is account credit, applied automatically to the next invoices while
+	// the subscription renews; nil when there is none.
+	Credit *BillingCredit `json:"credit"`
+}
+
+// BillingCredit is account credit, for example the unused part of a yearly
+// period after a switch to monthly billing.
+type BillingCredit struct {
+	// Amount is in minor units (cents), always positive.
+	Amount   int    `json:"amount"`
+	Currency string `json:"currency"`
+}
+
+// BillingPastDue is the failed payment behind a past_due subscription.
+type BillingPastDue struct {
+	// AmountDue is in minor units (cents), tax included.
+	AmountDue int    `json:"amount_due"`
+	Currency  string `json:"currency"`
+	FailedAt  string `json:"failed_at"`
+	// NextPaymentAttempt is nil when no automatic retries are left.
+	NextPaymentAttempt *string `json:"next_payment_attempt"`
+	// HostedInvoiceURL is where a human can pay the open invoice.
+	HostedInvoiceURL *string `json:"hosted_invoice_url"`
+	AttemptCount     int     `json:"attempt_count"`
+}
+
+// CreateUpgradeRequestParams are the inputs to Billing.CreateUpgradeRequest.
+type CreateUpgradeRequestParams struct {
+	// Interval is "month" (default) or "year".
+	Interval string `json:"interval,omitempty"`
+	// Reason is shown to the human approver (max 500 chars).
+	Reason string `json:"reason,omitempty"`
+	// Feature is the plan-gated feature that was blocked, e.g. "scoped_keys".
+	Feature string `json:"feature,omitempty"`
+	// Metric is the quota metric that was exhausted, e.g. "api_calls".
+	Metric string `json:"metric,omitempty"`
 }

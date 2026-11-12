@@ -41,6 +41,18 @@ func (s *CalendarService) Get(ctx context.Context, id string, opts ...RequestOpt
 	return &cal, nil
 }
 
+// RotateICalToken regenerates the calendar's iCal subscribe URL and returns
+// the calendar with its new ICalURL. The old URL stops working; copies cached
+// elsewhere can be served for up to 5 minutes. Organization keys only.
+func (s *CalendarService) RotateICalToken(ctx context.Context, id string, opts ...RequestOption) (*Calendar, error) {
+	var cal Calendar
+	err := s.client.do(ctx, http.MethodPost, fmt.Sprintf("/v1/calendars/%s/ical-token/rotate", id), nil, &cal, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &cal, nil
+}
+
 // List returns a paginated iterator over calendars.
 func (s *CalendarService) List(ctx context.Context, params *ListCalendarsParams) *PageIterator[Calendar] {
 	return newPageIterator(paramLimit(params), func(ctx context.Context, offset, limit int) (*ListResponse[Calendar], error) {

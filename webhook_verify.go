@@ -31,7 +31,9 @@ func withNow(fn func() time.Time) VerifyOption {
 }
 
 // VerifySignature verifies the HMAC-SHA256 signature of a webhook payload.
-// Returns nil if valid, an error if invalid.
+// Returns nil if valid, an error if invalid. During a secret rotation's grace
+// window, deliveries also carry X-Signature-Previous (signed with the replaced
+// secret); the payload is valid when secret matches either header.
 func VerifySignature(payload []byte, headers http.Header, secret string) error {
 	return VerifySignatureWithOptions(payload, headers, secret)
 }
@@ -50,6 +52,9 @@ func VerifySignatureWithOptions(payload []byte, headers http.Header, secret stri
 	if sig == "" {
 		return fmt.Errorf("chronary: missing X-Signature header")
 	}
+	// Sent during a secret rotation's grace window, signed with the replaced
+	// secret over the same timestamp.
+	previousSig := headers.Get("X-Signature-Previous")
 
 	tsStr := headers.Get("X-Timestamp")
 	if tsStr == "" {
@@ -73,8 +78,12 @@ func VerifySignatureWithOptions(payload []byte, headers http.Header, secret stri
 	mac.Write([]byte(fmt.Sprintf("%s.%s", tsStr, string(payload))))
 	expected := "sha256=" + hex.EncodeToString(mac.Sum(nil))
 
-	// Constant-time comparison
-	if !hmac.Equal([]byte(expected), []byte(sig)) {
+	// Accept the secret matching either header, so a receiver can switch
+	// secrets at any point in a rotation's window. Both comparisons always
+	// run, in constant time.
+	matchesCurrent := hmac.Equal([]byte(expected), []byte(sig))
+	matchesPrevious := previousSig != "" && hmac.Equal([]byte(expected), []byte(previousSig))
+	if !matchesCurrent && !matchesPrevious {
 		return fmt.Errorf("chronary: webhook signature mismatch")
 	}
 

@@ -12,10 +12,14 @@ type AccountService struct {
 }
 
 // DataExport is the response shape for GET /v1/auth/export — every row this
-// org owns, with encrypted fields decrypted in place.
+// org owns, with encrypted data fields decrypted in place.
 //
-// Sensitive fields (key hashes, password hashes, OTP hashes, claim revocation
-// tokens, internal scheduling state) are excluded server-side.
+// Secrets (webhook secrets, iCal URLs and feed tokens, Human calendar provider
+// identifiers) are "[redacted]" unless include_secrets=true is passed from a
+// recently signed-in session. Sensitive fields (key hashes, password hashes,
+// OTP hashes, claim revocation tokens, internal scheduling state) and Human
+// calendar provider credentials are never exported. An export over the
+// synchronous size limit fails with 413 export_too_large.
 type DataExport struct {
 	ExportedAt                    string            `json:"exported_at"`
 	FormatVersion                 string            `json:"format_version"`
@@ -36,6 +40,15 @@ type DataExport struct {
 	AccountClaimsInitiated        []json.RawMessage `json:"account_claims_initiated"`
 	AccountClaimsTargetingThisOrg []json.RawMessage `json:"account_claims_targeting_this_org"`
 	FeedbackSubmissions           []json.RawMessage `json:"feedback_submissions"`
+	UpgradeRequests               []json.RawMessage `json:"upgrade_requests"`
+	BookingPages                  []json.RawMessage `json:"booking_pages"`
+	AuditLog                      []json.RawMessage `json:"audit_log"`
+	ProviderAccounts              []json.RawMessage `json:"provider_accounts"`
+	ExternalCalendars             []json.RawMessage `json:"external_calendars"`
+	AvailabilityGrants            []json.RawMessage `json:"availability_grants"`
+	PublicationBindings           []json.RawMessage `json:"publication_bindings"`
+	ConnectionSetupLinks          []json.RawMessage `json:"connection_setup_links"`
+	WebhookDeliveries             []json.RawMessage `json:"webhook_deliveries"`
 }
 
 // DataExportOrg is the org block at the top of the export payload.

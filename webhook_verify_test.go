@@ -182,3 +182,65 @@ func TestSignedHeadersWithEventType(t *testing.T) {
 		t.Errorf("expected event.created, got %s", event.Type)
 	}
 }
+
+// --- Secret rotation (#594) ---
+
+func rotatedHeaders(payload []byte, oldSecret, newSecret string, ts int64) http.Header {
+	h := http.Header{}
+	h.Set("X-Signature", ComputeSignature(payload, newSecret, ts))
+	h.Set("X-Signature-Previous", ComputeSignature(payload, oldSecret, ts))
+	h.Set("X-Timestamp", strconv.FormatInt(ts, 10))
+	return h
+}
+
+func TestVerifySignatureRotationAcceptsEitherSecret(t *testing.T) {
+	payload := []byte(`{"type":"event.created","data":{}}`)
+	now := time.Now()
+	headers := rotatedHeaders(payload, "whsec_old", "whsec_new", now.Unix())
+	at := withNow(func() time.Time { return now })
+
+	if err := VerifySignatureWithOptions(payload, headers, "whsec_new", at); err != nil {
+		t.Fatalf("new secret via X-Signature: %v", err)
+	}
+	if err := VerifySignatureWithOptions(payload, headers, "whsec_old", at); err != nil {
+		t.Fatalf("old secret via X-Signature-Previous: %v", err)
+	}
+	if err := VerifySignatureWithOptions(payload, headers, "whsec_other", at); err == nil {
+		t.Fatal("expected a mismatch when neither header matches")
+	}
+}
+
+func TestVerifySignatureRotationAfterWindow(t *testing.T) {
+	payload := []byte(`{"type":"event.created","data":{}}`)
+	now := time.Now()
+	headers := rotatedHeaders(payload, "whsec_old", "whsec_new", now.Unix())
+	headers.Del("X-Signature-Previous")
+
+	err := VerifySignatureWithOptions(payload, headers, "whsec_old", withNow(func() time.Time { return now }))
+	if err == nil {
+		t.Fatal("expected the old secret to fail once X-Signature-Previous is gone")
+	}
+}
+
+func TestVerifySignatureRotationStillRequiresXSignature(t *testing.T) {
+	payload := []byte(`{"type":"event.created","data":{}}`)
+	now := time.Now()
+	headers := rotatedHeaders(payload, "whsec_old", "whsec_new", now.Unix())
+	headers.Del("X-Signature")
+
+	err := VerifySignatureWithOptions(payload, headers, "whsec_old", withNow(func() time.Time { return now }))
+	if err == nil || err.Error() != "chronary: missing X-Signature header" {
+		t.Fatalf("expected missing X-Signature error, got %v", err)
+	}
+}
+
+func TestVerifySignatureRotationKeepsTimestampCheck(t *testing.T) {
+	payload := []byte(`{"type":"event.created","data":{}}`)
+	now := time.Now()
+	headers := rotatedHeaders(payload, "whsec_old", "whsec_new", now.Add(-time.Hour).Unix())
+
+	err := VerifySignatureWithOptions(payload, headers, "whsec_old", withNow(func() time.Time { return now }))
+	if err == nil {
+		t.Fatal("expected a stale timestamp to fail even with a valid previous signature")
+	}
+}

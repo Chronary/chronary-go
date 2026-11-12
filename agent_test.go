@@ -134,6 +134,38 @@ func TestAgentList(t *testing.T) {
 	}
 }
 
+func TestAgentListSearchAndCounts(t *testing.T) {
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		for key, want := range map[string]string{"q": "sales", "sort": "name", "include_decommissioned": "true", "include_counts": "true"} {
+			if got := q.Get(key); got != want {
+				t.Errorf("expected %s=%s, got %q", key, want, got)
+			}
+		}
+		testutil.RespondJSON(w, 200, map[string]interface{}{
+			"data": []map[string]interface{}{
+				{"id": "agt_1", "name": "Sales", "type": "ai", "status": "active",
+					"createdAt": "2026-04-14T00:00:00Z", "updatedAt": "2026-04-14T00:00:00Z",
+					"calendar_count": 2, "scoped_key_count": 1},
+			},
+			"total": 1, "next_cursor": nil,
+		})
+	}))
+
+	items, err := client.Agents.List(context.Background(), &chronary.ListAgentsParams{
+		Q: "sales", Sort: "name", IncludeDecommissioned: true, IncludeCounts: true,
+	}).Collect(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].CalendarCount == nil || *items[0].CalendarCount != 2 {
+		t.Errorf("expected one agent with calendar_count 2, got %+v", items)
+	}
+	if items[0].ScopedKeyCount == nil || *items[0].ScopedKeyCount != 1 {
+		t.Errorf("expected scoped_key_count 1, got %v", items[0].ScopedKeyCount)
+	}
+}
+
 func TestAgentGetNotFound(t *testing.T) {
 	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		testutil.RespondError(w, 404, "not_found", "Agent not found")

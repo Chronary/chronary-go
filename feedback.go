@@ -10,7 +10,7 @@ type FeedbackService struct {
 	service
 }
 
-// Submit posts structured feedback (bug, feature, or friction) to Chronary.
+// Submit posts structured feedback (bug, feature, friction, or support) to Chronary.
 //
 // Rate-limited to 25 submissions per UTC day per organization. Available
 // on all plans, including free. The 26th submission returns 429 with

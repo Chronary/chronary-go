@@ -66,3 +66,32 @@ func TestAvailabilityAllowStaleAndHealth(t *testing.T) {
 		t.Fatalf("response: %#v, %v", resp, err)
 	}
 }
+
+func TestConnectionLinksList(t *testing.T) {
+	step := 0
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		step++
+		testutil.AssertMethod(t, r, http.MethodGet)
+		testutil.AssertPath(t, r, "/v1/connection-links")
+		if step == 1 {
+			q := r.URL.Query()
+			if q.Get("status") != "awaiting_human" || q.Get("calendar_id") != "cal_1" || q.Get("limit") != "5" {
+				t.Errorf("unexpected query: %s", r.URL.RawQuery)
+			}
+		} else if r.URL.RawQuery != "" {
+			t.Errorf("expected no query, got %s", r.URL.RawQuery)
+		}
+		testutil.RespondJSON(w, 200, map[string]interface{}{"data": []interface{}{map[string]interface{}{
+			"id": "csl_1", "calendar_id": "cal_1", "status": "awaiting_human", "expires_at": "2026-07-12T20:00:00Z",
+			"requested_capabilities": []string{"availability"}, "created_at": "2026-07-12T19:30:00Z",
+		}}})
+	}))
+
+	list, err := client.ConnectionLinks.List(context.Background(), &chronary.ListConnectionLinksParams{Status: "awaiting_human", CalendarID: "cal_1", Limit: 5})
+	if err != nil || len(list.Data) != 1 || list.Data[0].RequestedCapabilities[0] != "availability" {
+		t.Fatalf("list: %#v, %v", list, err)
+	}
+	if _, err := client.ConnectionLinks.List(context.Background(), nil); err != nil {
+		t.Fatal(err)
+	}
+}

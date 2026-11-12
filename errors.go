@@ -14,6 +14,20 @@ type Error struct {
 	StatusCode int    `json:"-"`
 	RequestID  string `json:"request_id,omitempty"`
 	RetryAfter int    `json:"-"` // seconds; 0 if not present
+
+	// Plan / quota guidance, present on plan_required and quota_exceeded errors.
+	UpgradeURL   string `json:"upgrade_url,omitempty"`
+	DocsURL      string `json:"docs_url,omitempty"`
+	RequiredPlan string `json:"required_plan,omitempty"`
+	UpgradePlan  string `json:"upgrade_plan,omitempty"`
+	Feature      string `json:"feature,omitempty"`
+	ContactURL   string `json:"contact_url,omitempty"`
+	Metric       string `json:"metric,omitempty"`
+	Limit        int    `json:"limit,omitempty"`
+
+	// Body is the raw `error` object from the response, including any
+	// server-provided fields not modeled above. Nil for non-JSON responses.
+	Body json.RawMessage `json:"-"`
 }
 
 // Sentinel errors for use with errors.Is.
@@ -23,6 +37,7 @@ var (
 	ErrValidation     = &Error{Type: "validation_error"}
 	ErrRateLimit      = &Error{Type: "rate_limited"}
 	ErrQuotaExceeded  = &Error{Type: "quota_exceeded"}
+	ErrPlanRequired   = &Error{Type: "plan_required"}
 	ErrTimeout        = &Error{Type: "timeout"}
 	ErrConnection     = &Error{Type: "connection_error"}
 )
@@ -57,6 +72,12 @@ func parseErrorResponse(statusCode int, body []byte, headers http.Header) *Error
 	if err := json.Unmarshal(body, &envelope); err == nil && envelope.Error.Type != "" {
 		e := &envelope.Error
 		e.StatusCode = statusCode
+		var raw struct {
+			Error json.RawMessage `json:"error"`
+		}
+		if err := json.Unmarshal(body, &raw); err == nil {
+			e.Body = raw.Error
+		}
 		if ra := headers.Get("Retry-After"); ra != "" {
 			if secs, err := strconv.Atoi(ra); err == nil {
 				e.RetryAfter = secs

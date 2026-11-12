@@ -61,6 +61,28 @@ func (s *EventService) List(ctx context.Context, params *ListEventsParams) *Page
 	})
 }
 
+// ListAll returns a paginated iterator over events across all of the
+// organization's calendars (GET /v1/events), ordered by start time. An
+// agent-scoped key sees only its agent's calendars.
+func (s *EventService) ListAll(ctx context.Context, params *ListOrgEventsParams) *PageIterator[Event] {
+	return newPageIterator(paramLimit(params), func(ctx context.Context, offset, limit int) (*ListResponse[Event], error) {
+		q := addQueryParams(params)
+		if params != nil {
+			for _, id := range params.CalendarIDs {
+				q.Add("calendar_id", id)
+			}
+		}
+		q.Set("limit", fmt.Sprintf("%d", limit))
+		q.Set("offset", fmt.Sprintf("%d", offset))
+		var resp ListResponse[Event]
+		err := s.client.do(ctx, http.MethodGet, "/v1/events?"+q.Encode(), nil, &resp)
+		if err != nil {
+			return nil, err
+		}
+		return &resp, nil
+	})
+}
+
 // Update updates an event by ID.
 func (s *EventService) Update(ctx context.Context, calendarID, eventID string, params *UpdateEventParams, opts ...RequestOption) (*Event, error) {
 	var event Event

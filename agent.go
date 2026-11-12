@@ -126,6 +126,10 @@ func paramLimit(params interface{}) int {
 		if p != nil {
 			return p.Limit
 		}
+	case *ListOrgEventsParams:
+		if p != nil {
+			return p.Limit
+		}
 	case *ListWebhooksParams:
 		if p != nil {
 			return p.Limit

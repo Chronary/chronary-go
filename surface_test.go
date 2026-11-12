@@ -379,6 +379,53 @@ func TestUsageGet_IncludesRecurringEvents(t *testing.T) {
 	}
 }
 
+func TestUsageHistory(t *testing.T) {
+	var gotQuery string
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		testutil.AssertMethod(t, r, "GET")
+		testutil.AssertPath(t, r, "/v1/usage/history")
+		gotQuery = r.URL.RawQuery
+		testutil.RespondJSON(w, 200, map[string]interface{}{
+			"plan":   "free",
+			"months": 1,
+			"limits": map[string]interface{}{
+				"api_calls": 50000, "events": 2500, "webhook_deliveries": 5000,
+				"availability_queries": 10000, "proposals": nil,
+			},
+			"data": []map[string]interface{}{{
+				"period": "2026-10", "period_start": "2026-10-01T00:00:00.000Z",
+				"period_end": "2026-10-31T23:59:59.000Z", "is_current": true,
+				"metrics": map[string]interface{}{"api_calls": 12480, "events": 3},
+			}},
+		})
+	}))
+
+	history, err := client.Usage.History(context.Background(), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotQuery != "months=1" {
+		t.Errorf("expected months=1 query, got %q", gotQuery)
+	}
+	if len(history.Data) != 1 || !history.Data[0].IsCurrent || history.Data[0].Metrics.APICalls != 12480 {
+		t.Errorf("unexpected history data: %+v", history.Data)
+	}
+	if history.Limits.APICalls == nil || *history.Limits.APICalls != 50000 {
+		t.Errorf("expected api_calls limit 50000, got %v", history.Limits.APICalls)
+	}
+	if history.Limits.Proposals != nil {
+		t.Errorf("expected nil proposals limit, got %v", *history.Limits.Proposals)
+	}
+
+	// months=0 omits the query so the server default applies.
+	if _, err := client.Usage.History(context.Background(), 0); err != nil {
+		t.Fatal(err)
+	}
+	if gotQuery != "" {
+		t.Errorf("expected no query for months=0, got %q", gotQuery)
+	}
+}
+
 // --- Calendar context + availability rules ---
 
 func TestCalendarGetContext(t *testing.T) {
@@ -486,6 +533,199 @@ func TestWebhookListDeliveries(t *testing.T) {
 	}
 	if resp.Total != 1 || resp.Stats.Delivered != 1 {
 		t.Errorf("unexpected envelope: %+v", resp)
+	}
+}
+
+func TestWebhookListDeliveriesFilters(t *testing.T) {
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		testutil.AssertPath(t, r, "/v1/webhooks/whk_1/deliveries")
+		q := r.URL.Query()
+		want := map[string]string{
+			"status": "dropped", "event_type": "event.", "created_after": "2026-04-18T00:00:00Z",
+			"delivery_id": "whd_1", "is_test": "false", "cursor": "abc", "limit": "5",
+		}
+		for k, v := range want {
+			if got := q.Get(k); got != v {
+				t.Errorf("query %s = %q, want %q", k, got, v)
+			}
+		}
+		testutil.RespondJSON(w, 200, map[string]interface{}{
+			"data": []map[string]interface{}{}, "total": 3, "limit": 5, "offset": 0,
+			"next_cursor": "next", "has_more": true,
+			"stats": map[string]int{"pending": 0, "delivered": 1, "failed": 0, "dropped": 2},
+		})
+	}))
+
+	status := chronary.WebhookDeliveryDropped
+	eventType, after, id, cursor := "event.", "2026-04-18T00:00:00Z", "whd_1", "abc"
+	isTest := false
+	resp, err := client.Webhooks.ListDeliveries(context.Background(), "whk_1", &chronary.ListWebhookDeliveriesParams{
+		Status: &status, EventType: &eventType, CreatedAfter: &after, DeliveryID: &id,
+		IsTest: &isTest, Cursor: &cursor, Limit: 5,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !resp.HasMore || resp.NextCursor == nil || *resp.NextCursor != "next" || resp.Stats.Dropped != 2 {
+		t.Errorf("unexpected envelope: %+v", resp)
+	}
+}
+
+func TestWebhookGetDelivery(t *testing.T) {
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		testutil.AssertMethod(t, r, "GET")
+		testutil.AssertPath(t, r, "/v1/webhooks/whk_1/deliveries/whd_1")
+		testutil.RespondJSON(w, 200, map[string]interface{}{
+			"id": "whd_1", "subscription_id": "whk_1",
+			"event_type": "event.created", "status": "failed",
+			"attempts": 1, "max_attempts": 4,
+			"last_attempt_at": "2026-04-14T00:00:00Z", "next_retry_at": nil,
+			"created_at":           "2026-04-14T00:00:00Z",
+			"last_response_status": 503, "last_error_code": "non_2xx", "last_duration_ms": 120,
+			"payload": map[string]interface{}{"id": "evt_1"}, "payload_redacted": false,
+			"request_headers": map[string]string{
+				"content-type": "application/json", "x-delivery-id": "whd_1",
+				"x-chronary-event-type": "event.created",
+			},
+			"attempt_log": []map[string]interface{}{
+				{
+					"id": "wha_1", "attempt_number": 1, "started_at": "2026-04-14T00:00:00Z",
+					"duration_ms": 120, "response_status": 503, "response_body": "unavailable",
+					"error_code": "non_2xx",
+				},
+			},
+		})
+	}))
+
+	resp, err := client.Webhooks.GetDelivery(context.Background(), "whk_1", "whd_1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.MaxAttempts != 4 || len(resp.AttemptLog) != 1 {
+		t.Fatalf("unexpected detail: %+v", resp)
+	}
+	a := resp.AttemptLog[0]
+	if a.ErrorCode == nil || *a.ErrorCode != chronary.WebhookAttemptErrorNon2xx {
+		t.Errorf("expected error_code non_2xx, got %v", a.ErrorCode)
+	}
+	if resp.LastResponseStatus == nil || *resp.LastResponseStatus != 503 {
+		t.Errorf("expected last_response_status 503, got %v", resp.LastResponseStatus)
+	}
+}
+
+func TestWebhookSendTest(t *testing.T) {
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		testutil.AssertMethod(t, r, "POST")
+		testutil.AssertPath(t, r, "/v1/webhooks/whk_1/test")
+		var body map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body["event_type"] != "event.created" {
+			t.Errorf("expected event_type event.created, got %v", body["event_type"])
+		}
+		testutil.RespondJSON(w, 202, map[string]interface{}{
+			"delivery_id": "whd_t", "webhook_id": "whk_1",
+			"event_type": "event.created", "status": "pending", "is_test": true,
+		})
+	}))
+
+	resp, err := client.Webhooks.SendTest(context.Background(), "whk_1", &chronary.SendTestWebhookParams{EventType: "event.created"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.DeliveryID != "whd_t" || !resp.IsTest || resp.Status != "pending" {
+		t.Fatalf("unexpected response: %+v", resp)
+	}
+}
+
+func TestWebhookReplayDelivery(t *testing.T) {
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		testutil.AssertMethod(t, r, "POST")
+		testutil.AssertPath(t, r, "/v1/webhooks/whk_1/deliveries/whd_orig/replay")
+		if got := r.Header.Get("Idempotency-Key"); got != "replay-1" {
+			t.Errorf("expected Idempotency-Key replay-1, got %q", got)
+		}
+		testutil.RespondJSON(w, 202, map[string]interface{}{
+			"delivery_id": "whd_new", "webhook_id": "whk_1", "event_type": "event.created",
+			"status": "pending", "replay_of_delivery_id": "whd_orig",
+		})
+	}))
+
+	resp, err := client.Webhooks.ReplayDelivery(context.Background(), "whk_1", "whd_orig", chronary.WithIdempotencyKey("replay-1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.DeliveryID != "whd_new" || resp.ReplayOfDeliveryID != "whd_orig" || resp.Status != "pending" {
+		t.Fatalf("unexpected response: %+v", resp)
+	}
+}
+
+func TestWebhookDeliveryReplayLink(t *testing.T) {
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		testutil.RespondJSON(w, 200, map[string]interface{}{
+			"id": "whd_new", "subscription_id": "whk_1", "event_type": "event.created", "status": "pending",
+			"attempts": 0, "max_attempts": 8, "created_at": "2026-11-04T00:00:00Z", "is_test": false,
+			"replay_of_delivery_id": "whd_orig", "payload": map[string]interface{}{}, "payload_redacted": false,
+			"request_headers": map[string]string{"x-chronary-replay-of": "whd_orig"}, "attempt_log": []interface{}{},
+		})
+	}))
+
+	d, err := client.Webhooks.GetDelivery(context.Background(), "whk_1", "whd_new")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.ReplayOfDeliveryID == nil || *d.ReplayOfDeliveryID != "whd_orig" || d.RequestHeaders["x-chronary-replay-of"] != "whd_orig" {
+		t.Fatalf("unexpected delivery: %+v", d)
+	}
+}
+
+func TestWebhookRotateSecret(t *testing.T) {
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		testutil.AssertMethod(t, r, "POST")
+		testutil.AssertPath(t, r, "/v1/webhooks/whk_1/secret/rotate")
+		var body map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body["expire_old_in"] != "1h" {
+			t.Errorf("expected expire_old_in 1h, got %v", body["expire_old_in"])
+		}
+		testutil.RespondJSON(w, 200, map[string]interface{}{
+			"webhook_id": "whk_1", "secret": "whsec_new",
+			"previous_secret_expires_at": "2026-11-05T10:00:00.000Z",
+		})
+	}))
+
+	resp, err := client.Webhooks.RotateSecret(context.Background(), "whk_1", &chronary.RotateWebhookSecretParams{ExpireOldIn: chronary.WebhookSecretExpire1h})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Secret != "whsec_new" || resp.PreviousSecretExpiresAt == nil {
+		t.Fatalf("unexpected response: %+v", resp)
+	}
+}
+
+func TestWebhookRotateSecretDefaults(t *testing.T) {
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := body["expire_old_in"]; ok {
+			t.Errorf("expected no expire_old_in, got %v", body)
+		}
+		testutil.RespondJSON(w, 200, map[string]interface{}{
+			"webhook_id": "whk_1", "secret": "whsec_new", "previous_secret_expires_at": nil,
+		})
+	}))
+
+	resp, err := client.Webhooks.RotateSecret(context.Background(), "whk_1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.PreviousSecretExpiresAt != nil {
+		t.Fatalf("expected nil expiry, got %v", *resp.PreviousSecretExpiresAt)
 	}
 }
 

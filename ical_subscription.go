@@ -61,7 +61,32 @@ func (s *ICalSubscriptionService) Delete(ctx context.Context, id string, opts ..
 	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/ical-subscriptions/%s", id), nil, opts...)
 }
 
-// Sync triggers an immediate sync of an iCal subscription.
+// Sync starts an immediate fetch of an iCal subscription's feed and returns as
+// soon as it has started; read the subscription a few seconds later for
+// LastSyncedAt / LastError. A paused feed returns a 409 error, and a second
+// sync of the same feed within a minute returns a 429 error.
 func (s *ICalSubscriptionService) Sync(ctx context.Context, id string, opts ...RequestOption) error {
 	return s.client.doNoContent(ctx, http.MethodPost, fmt.Sprintf("/v1/ical-subscriptions/%s/sync", id), nil, opts...)
+}
+
+// Pause stops polling an iCal subscription until it is resumed. Pausing a
+// paused subscription changes nothing.
+func (s *ICalSubscriptionService) Pause(ctx context.Context, id string, opts ...RequestOption) (*ICalSubscription, error) {
+	var sub ICalSubscription
+	err := s.client.do(ctx, http.MethodPost, fmt.Sprintf("/v1/ical-subscriptions/%s/pause", id), nil, &sub, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &sub, nil
+}
+
+// Resume returns a paused or failing iCal subscription to polling and clears
+// its last error.
+func (s *ICalSubscriptionService) Resume(ctx context.Context, id string, opts ...RequestOption) (*ICalSubscription, error) {
+	var sub ICalSubscription
+	err := s.client.do(ctx, http.MethodPost, fmt.Sprintf("/v1/ical-subscriptions/%s/resume", id), nil, &sub, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &sub, nil
 }

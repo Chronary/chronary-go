@@ -10,7 +10,7 @@ type PlansService struct {
 	service
 }
 
-// List fetches the public plan catalog (free, pro, scale, enterprise).
+// List fetches the public plan catalog (free, developer, pro, enterprise).
 // No authentication required — usable on a client constructed with WithAnonymous().
 // Responses are cached at the edge for 5 minutes.
 func (s *PlansService) List(ctx context.Context, opts ...RequestOption) (*PlansListResponse, error) {

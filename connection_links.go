@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strconv"
 )
 
 // ConnectionLinksService lets an agent request human-approved Google or
@@ -17,6 +19,32 @@ func (s *ConnectionLinksService) Create(ctx context.Context, calendarID string, 
 		return nil, err
 	}
 	return &link, nil
+}
+
+// List returns setup links, newest first. An agent-scoped key sees only its
+// own calendars' links.
+func (s *ConnectionLinksService) List(ctx context.Context, params *ListConnectionLinksParams, opts ...RequestOption) (*ConnectionLinkList, error) {
+	path := "/v1/connection-links"
+	if params != nil {
+		q := url.Values{}
+		if params.Status != "" {
+			q.Set("status", params.Status)
+		}
+		if params.CalendarID != "" {
+			q.Set("calendar_id", params.CalendarID)
+		}
+		if params.Limit > 0 {
+			q.Set("limit", strconv.Itoa(params.Limit))
+		}
+		if encoded := q.Encode(); encoded != "" {
+			path += "?" + encoded
+		}
+	}
+	var list ConnectionLinkList
+	if err := s.client.do(ctx, http.MethodGet, path, nil, &list, opts...); err != nil {
+		return nil, err
+	}
+	return &list, nil
 }
 
 func (s *ConnectionLinksService) Get(ctx context.Context, id string, opts ...RequestOption) (*ConnectionLink, error) {

@@ -10,7 +10,9 @@ func TestWebhookEventTypesParity(t *testing.T) {
 		"event.created", "event.updated", "event.deleted", "event.started", "event.ended", "event.reminder",
 		"event.hold_created", "event.hold_expired", "event.hold_released", "event.hold_confirmed",
 		"proposal.created", "proposal.responded", "proposal.confirmed", "proposal.expired", "proposal.cancelled",
-		"webhook.deactivated",
+		"webhook.deactivated", "org.plan_changed",
+		"calendar_connection.reauthorization_required",
+		"usage.threshold_crossed",
 	}
 
 	if len(WebhookEventTypes) != len(want) {

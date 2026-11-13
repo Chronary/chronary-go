@@ -2,7 +2,11 @@
 
 All notable changes to `chronary-go` will be documented in this file starting with the soft-launch release.
 
-## 0.9.0 — Unreleased
+## 0.10.0 — Unreleased
+
+- **Breaking:** `CreateCalendarParams.DefaultReminders`, `UpdateCalendarParams.DefaultReminders`, `CreateEventParams.Reminders` and `UpdateEventParams.Reminders` are now `*[]int` (were `[]int`). An empty slice used to be dropped by `omitempty`, so you could not create an event with no reminders or clear a calendar's default reminders: the event or calendar silently kept the default. Now nil omits the field, `chronary.NoReminders()` sends `[]` (no reminders) and `chronary.InheritReminders()` sends `null` (on an update, revert to inheriting the default). Migrate `Reminders: []int{10, 1440}` to `Reminders: chronary.Reminders(10, 1440)`. The `Calendar` and `Event` response fields stay `[]int` (#1991).
+
+## 0.9.0 — 2026-11-13
 
 - A 429 `quota_exceeded` (a monthly plan limit) is no longer retried: the call returns `ErrQuotaExceeded` at once instead of sleeping and asking again. A rate-limit 429 still retries, waiting at most 60 seconds (#1936).
 

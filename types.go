@@ -109,9 +109,11 @@ type CreateCalendarParams struct {
 	Name     string `json:"name"`
 	Timezone string `json:"timezone"`
 	// DefaultReminders sets the calendar-level default reminder schedule. Values
-	// are offsets in minutes before an event's start_time (e.g. []int{10, 1440});
-	// max 5, each 1–40320 (28 days). Omit to use the system default ([10]).
-	DefaultReminders []int                  `json:"default_reminders,omitempty"`
+	// are offsets in minutes before an event's start_time; max 5, each 1–40320
+	// (28 days). nil omits the field (system default [10]);
+	// chronary.Reminders(10, 1440) sends [10,1440]; chronary.NoReminders()
+	// sends [] (events on this calendar get no reminders by default).
+	DefaultReminders *[]int                 `json:"default_reminders,omitempty"`
 	Metadata         map[string]interface{} `json:"metadata,omitempty"`
 }
 
@@ -120,9 +122,11 @@ type UpdateCalendarParams struct {
 	Name     *string `json:"name,omitempty"`
 	Timezone *string `json:"timezone,omitempty"`
 	// DefaultReminders replaces the calendar-level default reminder schedule.
-	// Values are offsets in minutes before an event's start_time (e.g.
-	// []int{10, 1440}); max 5, each 1–40320 (28 days).
-	DefaultReminders []int                  `json:"default_reminders,omitempty"`
+	// Values are offsets in minutes before an event's start_time; max 5, each
+	// 1–40320 (28 days). nil leaves it unchanged; chronary.Reminders(10, 1440)
+	// sends [10,1440]; chronary.NoReminders() sends [] (no default reminders);
+	// chronary.InheritReminders() sends null (revert to the system default [10]).
+	DefaultReminders *[]int                 `json:"default_reminders,omitempty"`
 	Metadata         map[string]interface{} `json:"metadata,omitempty"`
 }
 
@@ -299,11 +303,12 @@ type CreateEventParams struct {
 	Description *string      `json:"description,omitempty"`
 	AllDay      *bool        `json:"all_day,omitempty"`
 	Status      *EventStatus `json:"status,omitempty"`
-	// Reminders are offsets in minutes before start_time (e.g. []int{10, 1440});
-	// max 5, each 1–40320 (28 days). Each fires an event.reminder webhook and
-	// shows as a VALARM in the iCal feed. Omit to inherit the calendar default
-	// (then the system default [10]); send an empty slice for no reminders.
-	Reminders []int `json:"reminders,omitempty"`
+	// Reminders are offsets in minutes before start_time; max 5, each 1–40320
+	// (28 days). Each fires an event.reminder webhook and shows as a VALARM in
+	// the iCal feed. nil omits the field: the event inherits the calendar
+	// default (then the system default [10]). chronary.Reminders(10, 1440)
+	// sends [10,1440]; chronary.NoReminders() sends [] (no reminders).
+	Reminders *[]int `json:"reminders,omitempty"`
 	// RecurrenceRule makes the event a recurring series master. RFC 5545 RRULE
 	// subset without the "RRULE:" prefix, e.g. "FREQ=WEEKLY;BYDAY=MO,WE;COUNT=12".
 	// Not allowed when Status is "hold".
@@ -320,9 +325,12 @@ type UpdateEventParams struct {
 	AllDay      *bool        `json:"all_day,omitempty"`
 	Status      *EventStatus `json:"status,omitempty"`
 	// Reminders replaces the event's reminder schedule. Offsets in minutes
-	// before start_time (e.g. []int{10, 1440}); max 5, each 1–40320 (28 days).
-	// An empty slice clears all reminders.
-	Reminders []int `json:"reminders,omitempty"`
+	// before start_time; max 5, each 1–40320 (28 days). nil leaves it
+	// unchanged; chronary.Reminders(10, 1440) sends [10,1440];
+	// chronary.NoReminders() sends [] (clears all reminders);
+	// chronary.InheritReminders() sends null (revert to inheriting the
+	// calendar default).
+	Reminders *[]int `json:"reminders,omitempty"`
 	// RecurrenceRule sets or changes the series rule — a full-series edit that
 	// re-anchors the series (RFC 5545 RRULE subset, no "RRULE:" prefix). The
 	// REST API also accepts an explicit JSON null to clear the rule and make

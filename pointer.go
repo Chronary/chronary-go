@@ -43,3 +43,30 @@ func BoolValue(p *bool) bool {
 	}
 	return *p
 }
+
+// Reminders returns a reminder schedule for the DefaultReminders / Reminders
+// fields of the calendar and event create/update params: offsets in minutes
+// before an event's start_time, e.g. Reminders(10, 1440). The result is never
+// a nil slice, so Reminders() with no arguments sends [] (no reminders), the
+// same as NoReminders().
+func Reminders(minutes ...int) *[]int {
+	r := make([]int, len(minutes))
+	copy(r, minutes)
+	return &r
+}
+
+// NoReminders returns an explicitly empty reminder schedule. It sends [], which
+// means "no reminders" (on a calendar: no default reminders for its events).
+// A nil field would be omitted and the event would inherit the default instead.
+func NoReminders() *[]int {
+	r := []int{}
+	return &r
+}
+
+// InheritReminders returns a pointer to a nil slice, which sends an explicit
+// JSON null. On an update it reverts an event to inheriting its calendar's
+// default reminders, or a calendar to the system default ([10]). On a create it
+// is the same as leaving the field nil.
+func InheritReminders() *[]int {
+	return new([]int)
+}

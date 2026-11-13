@@ -109,6 +109,31 @@ if errors.As(err, &chronErr) {
 
 Sentinel errors: `ErrAuthentication`, `ErrNotFound`, `ErrValidation`, `ErrRateLimit`, `ErrQuotaExceeded`, `ErrTimeout`, `ErrConnection`.
 
+## Reminders
+
+Reminder fields on the create and update params are `*[]int` (minutes before the event starts), so "not set", "none" and "inherit" stay distinct:
+
+```go
+// 10 minutes and 1 day before
+event, err := client.Events.Create(ctx, cal.ID, &chronary.CreateEventParams{
+    Title:     "Standup",
+    StartTime: "2026-04-15T09:00:00Z",
+    EndTime:   "2026-04-15T09:30:00Z",
+    Reminders: chronary.Reminders(10, 1440),
+})
+
+// No reminders on this event (sends [])
+_, err = client.Events.Update(ctx, cal.ID, event.ID, &chronary.UpdateEventParams{Reminders: chronary.NoReminders()})
+
+// Go back to the calendar's default (sends null)
+_, err = client.Events.Update(ctx, cal.ID, event.ID, &chronary.UpdateEventParams{Reminders: chronary.InheritReminders()})
+
+// Clear a calendar's default reminders
+_, err = client.Calendars.Update(ctx, cal.ID, &chronary.UpdateCalendarParams{DefaultReminders: chronary.NoReminders()})
+```
+
+Leaving the field nil omits it: on a create the event inherits the calendar default (then the system default of 10 minutes); on an update the schedule is unchanged.
+
 ## Availability
 
 ```go

@@ -2,6 +2,10 @@
 
 All notable changes to `chronary-go` will be documented in this file starting with the soft-launch release.
 
+## 0.9.0 — Unreleased
+
+- A 429 `quota_exceeded` (a monthly plan limit) is no longer retried: the call returns `ErrQuotaExceeded` at once instead of sleeping and asking again. A rate-limit 429 still retries, waiting at most 60 seconds (#1936).
+
 ## 0.8.1 — 2026-11-09
 
 - `go.mod` adds `toolchain go1.26.10`, so the SDK's own builds and tests use a patched Go toolchain. The minimum Go version for your module is still 1.24; build with a current Go 1.26.x (or newer) toolchain to pick up the standard-library security fixes (#1642).

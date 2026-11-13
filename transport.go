@@ -128,7 +128,10 @@ func (c *Client) do(ctx context.Context, method, path string, body interface{}, 
 		apiErr := parseErrorResponse(resp.StatusCode, respBody, resp.Header)
 		lastErr = apiErr
 
-		if isRetryable(resp.StatusCode) && attempt < c.maxRetries {
+		// A monthly plan limit (429 quota_exceeded) is never retried: its
+		// Retry-After is the seconds left in the month, and asking again cannot
+		// succeed until the limit resets or the plan changes (#1936).
+		if isRetryable(resp.StatusCode) && attempt < c.maxRetries && apiErr.Type != "quota_exceeded" {
 			continue
 		}
 		return apiErr

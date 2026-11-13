@@ -358,12 +358,12 @@ func TestUsageGet_IncludesRecurringEvents(t *testing.T) {
 		testutil.RespondJSON(w, 200, map[string]interface{}{
 			"period_start": "2026-07-01T00:00:00Z", "period_end": "2026-08-01T00:00:00Z",
 			"plan":             "free",
-			"agents":           map[string]interface{}{"used": 1, "limit": 3},
-			"calendars":        map[string]interface{}{"used": 1, "limit": 10},
-			"events":           map[string]interface{}{"used": 5, "limit": 2500},
-			"api_calls":        map[string]interface{}{"used": 100, "limit": 50000},
-			"webhooks":         map[string]interface{}{"used": 0, "limit": 5000},
-			"recurring_events": map[string]interface{}{"used": 2, "limit": 10},
+			"agents":           map[string]interface{}{"used": 1, "limit": 1},
+			"calendars":        map[string]interface{}{"used": 1, "limit": 1},
+			"events":           map[string]interface{}{"used": 5, "limit": 100},
+			"api_calls":        map[string]interface{}{"used": 100, "limit": 1000},
+			"webhooks":         map[string]interface{}{"used": 0, "limit": 1000},
+			"recurring_events": map[string]interface{}{"used": 1, "limit": 1},
 		})
 	}))
 
@@ -371,11 +371,11 @@ func TestUsageGet_IncludesRecurringEvents(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if usage.RecurringEvents.Used != 2 {
-		t.Errorf("expected recurring_events.used 2, got %d", usage.RecurringEvents.Used)
+	if usage.RecurringEvents.Used != 1 {
+		t.Errorf("expected recurring_events.used 1, got %d", usage.RecurringEvents.Used)
 	}
-	if usage.RecurringEvents.Limit == nil || *usage.RecurringEvents.Limit != 10 {
-		t.Errorf("expected recurring_events.limit 10, got %v", usage.RecurringEvents.Limit)
+	if usage.RecurringEvents.Limit == nil || *usage.RecurringEvents.Limit != 1 {
+		t.Errorf("expected recurring_events.limit 1, got %v", usage.RecurringEvents.Limit)
 	}
 }
 
@@ -389,8 +389,8 @@ func TestUsageHistory(t *testing.T) {
 			"plan":   "free",
 			"months": 1,
 			"limits": map[string]interface{}{
-				"api_calls": 50000, "events": 2500, "webhook_deliveries": 5000,
-				"availability_queries": 10000, "proposals": nil,
+				"api_calls": 1000, "events": 100, "webhook_deliveries": 1000,
+				"availability_queries": 100, "proposals": nil,
 			},
 			"data": []map[string]interface{}{{
 				"period": "2026-10", "period_start": "2026-10-01T00:00:00.000Z",
@@ -410,8 +410,8 @@ func TestUsageHistory(t *testing.T) {
 	if len(history.Data) != 1 || !history.Data[0].IsCurrent || history.Data[0].Metrics.APICalls != 12480 {
 		t.Errorf("unexpected history data: %+v", history.Data)
 	}
-	if history.Limits.APICalls == nil || *history.Limits.APICalls != 50000 {
-		t.Errorf("expected api_calls limit 50000, got %v", history.Limits.APICalls)
+	if history.Limits.APICalls == nil || *history.Limits.APICalls != 1000 {
+		t.Errorf("expected api_calls limit 1000, got %v", history.Limits.APICalls)
 	}
 	if history.Limits.Proposals != nil {
 		t.Errorf("expected nil proposals limit, got %v", *history.Limits.Proposals)
@@ -942,10 +942,10 @@ func TestPlansList(t *testing.T) {
 				{"id": "free", "name": "Free", "tagline": "Get started",
 					"price": 0, "currency": "usd",
 					"limits": map[string]interface{}{
-						"agents": 3, "calendars": 10, "events": 2500,
-						"api_calls": 50000, "webhook_deliveries": 5000,
-						"availability_queries": 10000, "ical_subscriptions": 5,
-						"proposals": 0, "webhook_endpoints": 3, "scoped_keys": 0,
+						"agents": 1, "calendars": 1, "events": 100,
+						"api_calls": 1000, "webhook_deliveries": 1000,
+						"availability_queries": 100, "ical_subscriptions": 0,
+						"proposals": 0, "webhook_endpoints": 1, "scoped_keys": 0,
 					},
 					"display_features": []string{}, "recommended": false},
 			},
@@ -964,8 +964,8 @@ func TestPlansList(t *testing.T) {
 	if limits == nil {
 		t.Fatal("expected non-nil limits")
 	}
-	if limits.WebhookEndpoints == nil || *limits.WebhookEndpoints != 3 {
-		t.Errorf("expected webhook_endpoints 3, got %v", limits.WebhookEndpoints)
+	if limits.WebhookEndpoints == nil || *limits.WebhookEndpoints != 1 {
+		t.Errorf("expected webhook_endpoints 1, got %v", limits.WebhookEndpoints)
 	}
 	if limits.ScopedKeys == nil || *limits.ScopedKeys != 0 {
 		t.Errorf("expected scoped_keys 0, got %v", limits.ScopedKeys)

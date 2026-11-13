@@ -27,7 +27,7 @@ func TestBillingGet(t *testing.T) {
 		testutil.AssertMethod(t, r, http.MethodGet)
 		testutil.AssertPath(t, r, "/v1/billing")
 		testutil.RespondJSON(w, 200, map[string]interface{}{
-			"plan": "free-agent", "plan_source": nil, "plan_expires_at": nil, "status": nil,
+			"plan": "free", "plan_source": nil, "plan_expires_at": nil, "status": nil,
 			"interval": nil, "current_period_end": nil, "cancel_at": nil, "cancel_at_period_end": false,
 			"renews_at": nil, "price": nil, "has_billing_account": false, "self_serve_upgrade": true,
 			"upgrade_options": []interface{}{
@@ -47,7 +47,7 @@ func TestBillingGet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if b.Plan != "free-agent" || !b.SelfServeUpgrade || len(b.UpgradeOptions) != 1 || b.UpgradeOptions[0].Amount != 2900 {
+	if b.Plan != "free" || !b.SelfServeUpgrade || len(b.UpgradeOptions) != 1 || b.UpgradeOptions[0].Amount != 2900 {
 		t.Fatalf("unexpected summary: %#v", b)
 	}
 	if b.PendingUpgradeRequest == nil || b.PendingUpgradeRequest.ID != "upr_1" {

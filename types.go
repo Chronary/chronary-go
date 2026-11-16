@@ -289,10 +289,31 @@ type Event struct {
 	RecurringEventID string `json:"recurringEventId,omitempty"`
 	// OriginalStartTime is present only on expanded instances: the occurrence
 	// start this instance was generated for.
-	OriginalStartTime string    `json:"originalStartTime,omitempty"`
-	DeletedAt         *string   `json:"deletedAt"`
-	CreatedAt         time.Time `json:"createdAt"`
-	UpdatedAt         time.Time `json:"updatedAt"`
+	OriginalStartTime string `json:"originalStartTime,omitempty"`
+	// Timezone is the IANA time zone a recurring series repeats in (BYDAY,
+	// the start-time match and a date-only UNTIL are evaluated in it). nil
+	// means UTC. All-day events ignore it for expansion.
+	Timezone *string `json:"timezone"`
+	// StartLocal is present only on expanded instances: the start as local
+	// wall time in the series time zone (UTC when it has none), without an
+	// offset, e.g. "2026-03-10T09:00:00".
+	StartLocal string `json:"startLocal,omitempty"`
+	// UTCOffset is present only on expanded instances: the UTC offset that
+	// applies at StartLocal, e.g. "-08:00".
+	UTCOffset string `json:"utcOffset,omitempty"`
+	// DSTAdjusted is present only on expanded instances: "gap" when the local
+	// start did not exist (DST spring-forward) and was moved forward by the
+	// gap; otherwise nil.
+	DSTAdjusted *string `json:"dstAdjusted,omitempty"`
+	// DroppedExdates is present only on an update response that moved a
+	// recurring series (changed start_time, recurrence_rule or timezone):
+	// cancelled occurrences whose local date has no occurrence in the new
+	// series. They were removed; re-cancel the right occurrence with
+	// CancelOccurrence if needed.
+	DroppedExdates []string  `json:"droppedExdates,omitempty"`
+	DeletedAt      *string   `json:"deletedAt"`
+	CreatedAt      time.Time `json:"createdAt"`
+	UpdatedAt      time.Time `json:"updatedAt"`
 }
 
 // CreateEventParams are the parameters for creating an event.
@@ -312,8 +333,13 @@ type CreateEventParams struct {
 	// RecurrenceRule makes the event a recurring series master. RFC 5545 RRULE
 	// subset without the "RRULE:" prefix, e.g. "FREQ=WEEKLY;BYDAY=MO,WE;COUNT=12".
 	// Not allowed when Status is "hold".
-	RecurrenceRule *string                `json:"recurrence_rule,omitempty"`
-	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+	RecurrenceRule *string `json:"recurrence_rule,omitempty"`
+	// Timezone is the IANA time zone the series repeats in, e.g.
+	// chronary.String("America/Los_Angeles"): a weekly 16:00 stays 16:00
+	// local across daylight-saving changes, and BYDAY and a date-only UNTIL
+	// are read in this zone. nil omits it (UTC). All-day events ignore it.
+	Timezone *string                `json:"timezone,omitempty"`
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // UpdateEventParams are the parameters for updating an event.
@@ -336,8 +362,17 @@ type UpdateEventParams struct {
 	// REST API also accepts an explicit JSON null to clear the rule and make
 	// the event one-off; like other nullable update fields this typed struct
 	// only expresses set/change (omitted when nil).
-	RecurrenceRule *string                `json:"recurrence_rule,omitempty"`
-	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+	RecurrenceRule *string `json:"recurrence_rule,omitempty"`
+	// Timezone changes the IANA time zone the series repeats in. nil leaves
+	// it unchanged; chronary.SetTimezone("America/Los_Angeles") sends the
+	// zone; chronary.ClearTimezone() sends null (the series returns to UTC).
+	// Sent with RecurrenceRule and/or StartTime, all three are validated
+	// together on the merged event, so a UTC series can move to local time
+	// in one call. Changing StartTime, RecurrenceRule or Timezone keeps each
+	// cancelled occurrence on its local date; any with no match come back in
+	// Event.DroppedExdates.
+	Timezone **string               `json:"timezone,omitempty"`
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // ListEventsParams are the query parameters for listing events.

@@ -52,3 +52,20 @@ func TestBoolValue(t *testing.T) {
 		t.Error("expected true")
 	}
 }
+
+func TestSetTimezone(t *testing.T) {
+	tz := SetTimezone("America/Los_Angeles")
+	if tz == nil || *tz == nil || **tz != "America/Los_Angeles" {
+		t.Errorf("expected pointer to America/Los_Angeles, got %v", tz)
+	}
+}
+
+func TestClearTimezone(t *testing.T) {
+	tz := ClearTimezone()
+	if tz == nil {
+		t.Fatal("expected a non-nil outer pointer")
+	}
+	if *tz != nil {
+		t.Errorf("expected a nil inner pointer, got %v", **tz)
+	}
+}

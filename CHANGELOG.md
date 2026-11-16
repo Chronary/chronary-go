@@ -2,7 +2,12 @@
 
 All notable changes to `chronary-go` will be documented in this file starting with the soft-launch release.
 
-## 0.10.0 — Unreleased
+## 0.11.0 — 2026-11-16
+
+- **Time-zone-aware recurrence (#2276).** `CreateEventParams.Timezone` (`*string`, an IANA zone such as `chronary.String("America/Los_Angeles")`) and `UpdateEventParams.Timezone`: a recurring series then repeats on local wall time across daylight-saving changes, and BYDAY and a date-only UNTIL are read in that zone. `UpdateEventParams.Timezone` is `**string`: nil leaves the zone unchanged, `chronary.SetTimezone("America/Los_Angeles")` sets it and `chronary.ClearTimezone()` sends `null` (back to UTC). `Event` gains `Timezone`, and expanded instances gain `StartLocal`, `UTCOffset` and `DSTAdjusted` (`"gap"` when a DST gap moved the start forward).
+- **Series edits keep cancelled occurrences (#2277).** An update that changes `StartTime`, `RecurrenceRule` or `Timezone` on a recurring series carries each cancelled occurrence to the new occurrence on the same local date instead of clearing it. `Event.DroppedExdates` lists any with no occurrence left on that date; re-cancel them with `CancelOccurrence` if needed.
+
+## 0.10.0 — 2026-11-13
 
 - **Breaking:** `CreateCalendarParams.DefaultReminders`, `UpdateCalendarParams.DefaultReminders`, `CreateEventParams.Reminders` and `UpdateEventParams.Reminders` are now `*[]int` (were `[]int`). An empty slice used to be dropped by `omitempty`, so you could not create an event with no reminders or clear a calendar's default reminders: the event or calendar silently kept the default. Now nil omits the field, `chronary.NoReminders()` sends `[]` (no reminders) and `chronary.InheritReminders()` sends `null` (on an update, revert to inheriting the default). Migrate `Reminders: []int{10, 1440}` to `Reminders: chronary.Reminders(10, 1440)`. The `Calendar` and `Event` response fields stay `[]int` (#1991).
 

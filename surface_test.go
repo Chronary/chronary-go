@@ -351,6 +351,217 @@ func TestEventCancelOccurrenceByID_UsesEventOnlyPath(t *testing.T) {
 	}
 }
 
+// --- Time zones and kept exdates (#2276, #2277) ---
+
+func TestEventCreate_SendsTimezone(t *testing.T) {
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		testutil.AssertMethod(t, r, "POST")
+		testutil.AssertPath(t, r, "/v1/calendars/cal_1/events")
+		var body map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body["timezone"] != "America/Los_Angeles" {
+			t.Errorf("expected timezone in request body, got %v", body["timezone"])
+		}
+		testutil.RespondJSON(w, 201, map[string]interface{}{
+			"id": "evt_1", "calendarId": "cal_1", "title": "Standup",
+			"startTime": "2026-03-10T16:00:00Z", "endTime": "2026-03-10T16:30:00Z",
+			"allDay": false, "status": "confirmed", "source": "internal",
+			"recurrenceRule": "FREQ=WEEKLY;BYDAY=TU", "timezone": "America/Los_Angeles",
+			"createdAt": "2026-03-01T00:00:00Z", "updatedAt": "2026-03-01T00:00:00Z",
+		})
+	}))
+
+	event, err := client.Events.Create(context.Background(), "cal_1", &chronary.CreateEventParams{
+		Title:          "Standup",
+		StartTime:      "2026-03-10T16:00:00Z",
+		EndTime:        "2026-03-10T16:30:00Z",
+		RecurrenceRule: chronary.String("FREQ=WEEKLY;BYDAY=TU"),
+		Timezone:       chronary.String("America/Los_Angeles"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if event.Timezone == nil || *event.Timezone != "America/Los_Angeles" {
+		t.Errorf("expected timezone to deserialize, got %v", event.Timezone)
+	}
+}
+
+func TestEventCreate_OmitsTimezoneWhenNil(t *testing.T) {
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := body["timezone"]; ok {
+			t.Errorf("expected timezone absent, got %v", body["timezone"])
+		}
+		testutil.RespondJSON(w, 201, map[string]interface{}{
+			"id": "evt_1", "calendarId": "cal_1", "title": "One-off",
+			"startTime": "2026-03-10T16:00:00Z", "endTime": "2026-03-10T16:30:00Z",
+			"timezone":  nil,
+			"createdAt": "2026-03-01T00:00:00Z", "updatedAt": "2026-03-01T00:00:00Z",
+		})
+	}))
+
+	event, err := client.Events.Create(context.Background(), "cal_1", &chronary.CreateEventParams{
+		Title: "One-off", StartTime: "2026-03-10T16:00:00Z", EndTime: "2026-03-10T16:30:00Z",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if event.Timezone != nil {
+		t.Errorf("expected nil timezone, got %v", *event.Timezone)
+	}
+	if event.DroppedExdates != nil {
+		t.Errorf("expected nil droppedExdates, got %v", event.DroppedExdates)
+	}
+}
+
+func TestEventUpdate_MigrationPatchReturnsDroppedExdates(t *testing.T) {
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		testutil.AssertMethod(t, r, "PATCH")
+		testutil.AssertPath(t, r, "/v1/events/evt_1")
+		var body map[string]json.RawMessage
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if len(body) != 2 {
+			t.Errorf("expected only timezone and recurrence_rule, got %v", body)
+		}
+		if string(body["timezone"]) != `"America/Los_Angeles"` {
+			t.Errorf("expected timezone, got %s", body["timezone"])
+		}
+		if string(body["recurrence_rule"]) != `"FREQ=WEEKLY;BYDAY=TU"` {
+			t.Errorf("expected recurrence_rule, got %s", body["recurrence_rule"])
+		}
+		testutil.RespondJSON(w, 200, map[string]interface{}{
+			"id": "evt_1", "calendarId": "cal_1", "title": "Standup",
+			"startTime": "2026-03-10T23:00:00Z", "endTime": "2026-03-10T23:30:00Z",
+			"recurrenceRule": "FREQ=WEEKLY;BYDAY=TU", "recurrenceExdates": []string{},
+			"timezone": "America/Los_Angeles", "droppedExdates": []string{"2026-03-18T00:00:00.000Z"},
+			"createdAt": "2026-03-01T00:00:00Z", "updatedAt": "2026-03-01T00:00:00Z",
+		})
+	}))
+
+	event, err := client.Events.UpdateByID(context.Background(), "evt_1", &chronary.UpdateEventParams{
+		Timezone:       chronary.SetTimezone("America/Los_Angeles"),
+		RecurrenceRule: chronary.String("FREQ=WEEKLY;BYDAY=TU"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if event.Timezone == nil || *event.Timezone != "America/Los_Angeles" {
+		t.Errorf("expected timezone, got %v", event.Timezone)
+	}
+	if len(event.DroppedExdates) != 1 || event.DroppedExdates[0] != "2026-03-18T00:00:00.000Z" {
+		t.Errorf("expected droppedExdates to deserialize, got %v", event.DroppedExdates)
+	}
+}
+
+func TestEventUpdate_OmitsTimezoneWhenNil(t *testing.T) {
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		testutil.AssertPath(t, r, "/v1/calendars/cal_1/events/evt_1")
+		var body map[string]json.RawMessage
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := body["timezone"]; ok {
+			t.Errorf("expected timezone absent, got %s", body["timezone"])
+		}
+		testutil.RespondJSON(w, 200, map[string]interface{}{
+			"id": "evt_1", "calendarId": "cal_1", "title": "Renamed",
+			"startTime": "2026-03-11T16:00:00Z", "endTime": "2026-03-11T16:30:00Z",
+			"timezone":  "America/Los_Angeles",
+			"createdAt": "2026-03-01T00:00:00Z", "updatedAt": "2026-03-01T00:00:00Z",
+		})
+	}))
+
+	_, err := client.Events.Update(context.Background(), "cal_1", "evt_1", &chronary.UpdateEventParams{
+		Title: chronary.String("Renamed"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEventUpdate_ClearTimezoneSendsNull(t *testing.T) {
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]json.RawMessage
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if raw, ok := body["timezone"]; !ok || string(raw) != "null" {
+			t.Errorf("expected timezone:null, got %s (present=%v)", raw, ok)
+		}
+		testutil.RespondJSON(w, 200, map[string]interface{}{
+			"id": "evt_1", "calendarId": "cal_1", "title": "Standup",
+			"startTime": "2026-03-11T16:00:00Z", "endTime": "2026-03-11T16:30:00Z",
+			"timezone":  nil,
+			"createdAt": "2026-03-01T00:00:00Z", "updatedAt": "2026-03-01T00:00:00Z",
+		})
+	}))
+
+	event, err := client.Events.Update(context.Background(), "cal_1", "evt_1", &chronary.UpdateEventParams{
+		Timezone: chronary.ClearTimezone(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if event.Timezone != nil {
+		t.Errorf("expected nil timezone, got %v", *event.Timezone)
+	}
+}
+
+func TestEventList_ExpandedInstanceLocalTimeFields(t *testing.T) {
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		testutil.RespondJSON(w, 200, map[string]interface{}{
+			"data": []map[string]interface{}{
+				{
+					"id": "evt_1", "calendarId": "cal_1", "title": "Standup",
+					"startTime": "2026-03-08T10:30:00Z", "endTime": "2026-03-08T11:00:00Z",
+					"recurringEventId": "evt_1", "originalStartTime": "2026-03-08T10:30:00.000Z",
+					"timezone": "America/Los_Angeles", "startLocal": "2026-03-08T03:30:00",
+					"utcOffset": "-07:00", "dstAdjusted": "gap",
+					"createdAt": "2026-03-01T00:00:00Z", "updatedAt": "2026-03-01T00:00:00Z",
+				},
+				{
+					"id": "evt_1", "calendarId": "cal_1", "title": "Standup",
+					"startTime": "2026-03-15T09:30:00Z", "endTime": "2026-03-15T10:00:00Z",
+					"recurringEventId": "evt_1", "originalStartTime": "2026-03-15T09:30:00.000Z",
+					"timezone": "America/Los_Angeles", "startLocal": "2026-03-15T02:30:00",
+					"utcOffset": "-07:00", "dstAdjusted": nil,
+					"createdAt": "2026-03-01T00:00:00Z", "updatedAt": "2026-03-01T00:00:00Z",
+				},
+			},
+			"total": 2, "limit": 50, "offset": 0,
+		})
+	}))
+
+	events, err := client.Events.List(context.Background(), &chronary.ListEventsParams{
+		CalendarID:  chronary.String("cal_1"),
+		StartAfter:  chronary.String("2026-03-01T00:00:00Z"),
+		StartBefore: chronary.String("2026-03-31T00:00:00Z"),
+		Expand:      chronary.Bool(true),
+	}).Collect(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 2 {
+		t.Fatalf("expected 2 events, got %d", len(events))
+	}
+	if events[0].StartLocal != "2026-03-08T03:30:00" || events[0].UTCOffset != "-07:00" {
+		t.Errorf("expected startLocal/utcOffset to deserialize, got %q %q", events[0].StartLocal, events[0].UTCOffset)
+	}
+	if events[0].DSTAdjusted == nil || *events[0].DSTAdjusted != "gap" {
+		t.Errorf("expected dstAdjusted gap, got %v", events[0].DSTAdjusted)
+	}
+	if events[1].DSTAdjusted != nil {
+		t.Errorf("expected nil dstAdjusted, got %v", *events[1].DSTAdjusted)
+	}
+}
+
 func TestUsageGet_IncludesRecurringEvents(t *testing.T) {
 	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		testutil.AssertMethod(t, r, "GET")

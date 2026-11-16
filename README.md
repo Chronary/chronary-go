@@ -134,6 +134,27 @@ _, err = client.Calendars.Update(ctx, cal.ID, &chronary.UpdateCalendarParams{Def
 
 Leaving the field nil omits it: on a create the event inherits the calendar default (then the system default of 10 minutes); on an update the schedule is unchanged.
 
+## Time zones
+
+A recurring series can repeat on local wall time in an IANA time zone: a weekly 16:00 stays 16:00 local across daylight-saving changes.
+
+```go
+event, err := client.Events.Create(ctx, cal.ID, &chronary.CreateEventParams{
+    Title:          "Team sync",
+    StartTime:      "2026-03-10T16:00:00Z", // 09:00 in Los Angeles
+    EndTime:        "2026-03-10T16:30:00Z",
+    RecurrenceRule: chronary.String("FREQ=WEEKLY;BYDAY=TU"),
+    Timezone:       chronary.String("America/Los_Angeles"),
+})
+
+// Back to UTC (sends null)
+_, err = client.Events.Update(ctx, cal.ID, event.ID, &chronary.UpdateEventParams{
+    Timezone: chronary.ClearTimezone(),
+})
+```
+
+On an update, `Timezone` is nil to leave it unchanged, `chronary.SetTimezone(...)` to set it, and `chronary.ClearTimezone()` to send `null`. An update that moves a recurring series keeps each cancelled occurrence on its local date and returns any it could not keep in `Event.DroppedExdates`.
+
 ## Availability
 
 ```go

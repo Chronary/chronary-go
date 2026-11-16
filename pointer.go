@@ -70,3 +70,18 @@ func NoReminders() *[]int {
 func InheritReminders() *[]int {
 	return new([]int)
 }
+
+// SetTimezone returns an IANA time zone for UpdateEventParams.Timezone, e.g.
+// SetTimezone("America/Los_Angeles"): the series repeats on local wall time in
+// that zone.
+func SetTimezone(tz string) **string {
+	p := &tz
+	return &p
+}
+
+// ClearTimezone returns a Timezone value that sends an explicit JSON null:
+// the series returns to UTC. A nil field would be omitted and leave the zone
+// unchanged.
+func ClearTimezone() **string {
+	return new(*string)
+}

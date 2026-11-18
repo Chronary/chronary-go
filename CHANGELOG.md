@@ -2,6 +2,11 @@
 
 All notable changes to `chronary-go` will be documented in this file starting with the soft-launch release.
 
+## 0.12.0 — 2026-11-17
+
+- `Usage` gains `CalendarConnections` (`UsageCounter`): live Google / Microsoft calendar connections vs. the plan cap (#2397).
+- Doc comments name the Developer plan: `AuditLog.List` retention is Free 3 days / Developer 30 / Pro 90, and `Billing.CreateUpgradeRequest` asks for the next plan up (Free to Developer, Developer to Pro) rather than always Pro (#2397).
+
 ## 0.11.0 — 2026-11-16
 
 - **Time-zone-aware recurrence (#2276).** `CreateEventParams.Timezone` (`*string`, an IANA zone such as `chronary.String("America/Los_Angeles")`) and `UpdateEventParams.Timezone`: a recurring series then repeats on local wall time across daylight-saving changes, and BYDAY and a date-only UNTIL are read in that zone. `UpdateEventParams.Timezone` is `**string`: nil leaves the zone unchanged, `chronary.SetTimezone("America/Los_Angeles")` sets it and `chronary.ClearTimezone()` sends `null` (back to UTC). `Event` gains `Timezone`, and expanded instances gain `StartLocal`, `UTCOffset` and `DSTAdjusted` (`"gap"` when a DST gap moved the start forward).

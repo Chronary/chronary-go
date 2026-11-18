@@ -568,19 +568,23 @@ func TestUsageGet_IncludesRecurringEvents(t *testing.T) {
 		testutil.AssertPath(t, r, "/v1/usage")
 		testutil.RespondJSON(w, 200, map[string]interface{}{
 			"period_start": "2026-07-01T00:00:00Z", "period_end": "2026-08-01T00:00:00Z",
-			"plan":             "free",
-			"agents":           map[string]interface{}{"used": 1, "limit": 1},
-			"calendars":        map[string]interface{}{"used": 1, "limit": 1},
-			"events":           map[string]interface{}{"used": 5, "limit": 100},
-			"api_calls":        map[string]interface{}{"used": 100, "limit": 1000},
-			"webhooks":         map[string]interface{}{"used": 0, "limit": 1000},
-			"recurring_events": map[string]interface{}{"used": 1, "limit": 1},
+			"plan":                 "free",
+			"agents":               map[string]interface{}{"used": 1, "limit": 1},
+			"calendars":            map[string]interface{}{"used": 1, "limit": 1},
+			"events":               map[string]interface{}{"used": 5, "limit": 100},
+			"api_calls":            map[string]interface{}{"used": 100, "limit": 1000},
+			"webhooks":             map[string]interface{}{"used": 0, "limit": 1000},
+			"recurring_events":     map[string]interface{}{"used": 1, "limit": 1},
+			"calendar_connections": map[string]interface{}{"used": 1, "limit": 1},
 		})
 	}))
 
 	usage, err := client.Usage.Get(context.Background())
 	if err != nil {
 		t.Fatal(err)
+	}
+	if usage.CalendarConnections.Used != 1 || usage.CalendarConnections.Limit == nil || *usage.CalendarConnections.Limit != 1 {
+		t.Errorf("expected calendar_connections 1/1, got %+v", usage.CalendarConnections)
 	}
 	if usage.RecurringEvents.Used != 1 {
 		t.Errorf("expected recurring_events.used 1, got %d", usage.RecurringEvents.Used)

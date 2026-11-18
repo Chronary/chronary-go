@@ -45,8 +45,8 @@ type ListAuditLogParams struct {
 // List retrieves audit-log entries for the calling organization.
 //
 // Results are ordered by time descending and clamped to the per-tier
-// retention window (Free: 3 days, Pro: 90 days, Custom: per contract). Only org-level API keys may
-// call this endpoint — agent-scoped keys receive 403.
+// retention window (Free: 3 days, Developer: 30 days, Pro: 90 days, Custom: per
+// contract). Only org-level API keys may call this endpoint — agent-scoped keys receive 403.
 func (s *AuditLogService) List(ctx context.Context, params *ListAuditLogParams, opts ...RequestOption) (*AuditLogListResponse, error) {
 	path := "/v1/audit-log"
 	if params != nil {

@@ -25,8 +25,8 @@ func (s *BillingService) Get(ctx context.Context, opts ...RequestOption) (*Billi
 	return &summary, nil
 }
 
-// CreateUpgradeRequest asks a human to upgrade the account to Pro. Give the
-// returned ApprovalURL to your human; only a human can pay. If Reused is true a
+// CreateUpgradeRequest asks a human to upgrade the account to the next plan up
+// (Free to Developer, Developer to Pro). Give the returned ApprovalURL to your human; only a human can pay. If Reused is true a
 // request is already pending: poll it with GetUpgradeRequest (at most once a
 // minute) instead of creating another. Honors WithIdempotencyKey.
 func (s *BillingService) CreateUpgradeRequest(ctx context.Context, params *CreateUpgradeRequestParams, opts ...RequestOption) (*UpgradeRequest, error) {

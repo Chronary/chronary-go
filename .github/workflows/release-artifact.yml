@@ -66,10 +66,61 @@ jobs:
       - name: Test
         run: go test ./...
 
+      # SBOM (EU CRA Annex I Part II (1), #1634): CycloneDX, attached to the
+      # GitHub Release. Fail-closed: these run before anything is published,
+      # with no continue-on-error, so no release ships without a valid SBOM.
+      # Tool pins and the validator live in scripts/public-release/sbom.mjs.
+      - name: Generate SBOM
+        env:
+          # The tool needs a newer Go than some go.mod files ask for; let the
+          # go command fetch the toolchain it declares (checksum-verified).
+          GOTOOLCHAIN: auto
+        run: |
+          set -euo pipefail
+          # Library: describe the module and its requirements.
+          GOBIN="$RUNNER_TEMP/sbom-bin" go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.12.0
+          SBOM_FILE="sbom/chronary-go-${GITHUB_REF_NAME#v}.cdx.json"
+          mkdir -p "$(dirname "$SBOM_FILE")"
+          "$RUNNER_TEMP/sbom-bin/cyclonedx-gomod" mod -json -licenses \
+            -output-version 1.6 -output "$SBOM_FILE" .
+          echo "SBOM_FILE=$SBOM_FILE" >> "$GITHUB_ENV"
+
+      - name: Validate SBOM
+        env:
+          EXPECTED_NAME: 'github.com/Chronary/chronary-go'
+        run: |
+          node - "$SBOM_FILE" "$EXPECTED_NAME" "${GITHUB_REF_NAME#v}" <<'JS'
+          const fs = require('fs');
+          const [file, expectedName, expectedVersion] = process.argv.slice(2);
+          const fail = (msg) => {
+            console.error('::error::SBOM ' + file + ': ' + msg);
+            process.exit(1);
+          };
+          let bom;
+          try {
+            bom = JSON.parse(fs.readFileSync(file, 'utf8'));
+          } catch (e) {
+            fail('not readable JSON (' + e.message + ')');
+          }
+          if (bom.bomFormat !== 'CycloneDX') fail('bomFormat is ' + JSON.stringify(bom.bomFormat) + ', expected CycloneDX');
+          if (!/^1\.[4-9]$/.test(String(bom.specVersion))) fail('unsupported specVersion ' + JSON.stringify(bom.specVersion));
+          const main = bom.metadata && bom.metadata.component;
+          if (!main) fail('metadata.component is missing');
+          const name = [main.group, main.name].filter(Boolean).join('/');
+          if (name !== expectedName) fail('main component is ' + JSON.stringify(name) + ', expected ' + JSON.stringify(expectedName));
+          const bare = (v) => String(v).replace(/^v/, '');
+          if (!expectedVersion) fail('no expected version given');
+          if (main.version === undefined || main.version === '') main.version = bare(expectedVersion);
+          else if (bare(main.version) !== bare(expectedVersion)) fail('version is ' + main.version + ', expected ' + expectedVersion);
+          if (bom.components !== undefined && !Array.isArray(bom.components)) fail('components is not an array');
+          fs.writeFileSync(file, JSON.stringify(bom, null, 2) + '\n');
+          console.log('SBOM ok: ' + name + '@' + main.version + ', ' + (bom.components || []).length + ' components');
+          JS
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" \
+          gh release create "${GITHUB_REF_NAME}" "$SBOM_FILE" \
             --title "chronary-go ${GITHUB_REF_NAME}" \
             --notes-file RELEASE_NOTES.txt

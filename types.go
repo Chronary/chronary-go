@@ -1059,6 +1059,24 @@ type ProposalResponse struct {
 	CounterSlots   []ProposalSlot         `json:"counter_slots"`
 	Message        *string                `json:"message"`
 	CreatedAt      string                 `json:"created_at"`
+
+	// AutoResolved and AutoResolveError are set only on the result of
+	// SchedulingService.Respond. AutoResolved is "confirmed" or "cancelled"
+	// when this response was the last one and the proposal auto-resolved.
+	AutoResolved *string `json:"auto_resolved,omitempty"`
+	// AutoResolveError is set when this response was the last one but the
+	// auto-resolve failed. The response is still saved; Message says what to
+	// do next (usually: SchedulingService.Resolve once the cause is fixed). Do
+	// not respond again.
+	AutoResolveError *AutoResolveError `json:"auto_resolve_error,omitempty"`
+}
+
+// AutoResolveError says why a respond's auto-resolve failed. Code is one of
+// event_quota_exceeded, calendar_not_found, agent_inactive, conflict,
+// no_valid_slot or resolve_failed; Message says what to do next.
+type AutoResolveError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
 }
 
 // ProposalSummary is the listing-shape proposal (no slots/responses).

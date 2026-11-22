@@ -2,6 +2,10 @@
 
 All notable changes to `chronary-go` will be documented in this file starting with the soft-launch release.
 
+## 0.12.1 — unreleased
+
+- `ProposalResponse` gains `AutoResolved` and `AutoResolveError` (`*AutoResolveError{Code, Message}`), set only on the `Scheduling.Respond` result. When the last response's auto-resolve fails, the API now answers 200 with `auto_resolve_error` instead of an error status, because the response was saved; `Message` says what to do next (usually `Scheduling.Resolve`). Don't respond again (#2540).
+
 ## 0.12.0 — 2026-11-17
 
 - `Usage` gains `CalendarConnections` (`UsageCounter`): live Google / Microsoft calendar connections vs. the plan cap (#2397).

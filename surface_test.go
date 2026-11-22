@@ -998,6 +998,36 @@ func TestProposalRespond(t *testing.T) {
 	}
 }
 
+// A failed auto-resolve is a 200 carrying auto_resolve_error: the response is
+// saved and the proposal stays pending (#2540).
+func TestProposalRespond_AutoResolveError(t *testing.T) {
+	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		testutil.RespondJSON(w, 200, map[string]interface{}{
+			"id": "prr_1", "agent_id": "agt_2", "response": "accept",
+			"selected_slot_id": "pst_1", "counter_slots": nil,
+			"message": nil, "created_at": "2026-04-14T00:00:00Z",
+			"auto_resolved": nil,
+			"auto_resolve_error": map[string]interface{}{
+				"code": "event_quota_exceeded", "message": "The response was saved, but the proposal was not resolved",
+			},
+		})
+	}))
+
+	resp, err := client.Scheduling.Respond(context.Background(), "prp_1", &chronary.RespondToProposalParams{
+		AgentID:  "agt_2",
+		Response: chronary.ProposalResponseAccept,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.AutoResolved != nil {
+		t.Errorf("expected nil AutoResolved, got %v", *resp.AutoResolved)
+	}
+	if resp.AutoResolveError == nil || resp.AutoResolveError.Code != "event_quota_exceeded" {
+		t.Errorf("expected AutoResolveError event_quota_exceeded, got %+v", resp.AutoResolveError)
+	}
+}
+
 func TestProposalResolve(t *testing.T) {
 	client, _ := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		testutil.AssertMethod(t, r, "POST")

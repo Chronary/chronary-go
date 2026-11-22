@@ -15,7 +15,7 @@ type AvailabilityService struct {
 func (s *AvailabilityService) ForAgent(ctx context.Context, agentID string, params *AvailabilityParams, opts ...RequestOption) (*AvailabilityResponse, error) {
 	q := addQueryParams(params)
 	var resp AvailabilityResponse
-	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/agents/%s/availability?%s", agentID, q.Encode()), nil, &resp, opts...)
+	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/agents/%s/availability?%s", pathSegment(agentID), q.Encode()), nil, &resp, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -26,7 +26,7 @@ func (s *AvailabilityService) ForAgent(ctx context.Context, agentID string, para
 func (s *AvailabilityService) ForCalendar(ctx context.Context, calendarID string, params *AvailabilityParams, opts ...RequestOption) (*AvailabilityResponse, error) {
 	q := addQueryParams(params)
 	var resp AvailabilityResponse
-	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/calendars/%s/availability?%s", calendarID, q.Encode()), nil, &resp, opts...)
+	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/calendars/%s/availability?%s", pathSegment(calendarID), q.Encode()), nil, &resp, opts...)
 	if err != nil {
 		return nil, err
 	}

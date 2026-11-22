@@ -44,7 +44,7 @@ func (s *BillingService) CreateUpgradeRequest(ctx context.Context, params *Creat
 // GetUpgradeRequest retrieves an upgrade request by ID.
 func (s *BillingService) GetUpgradeRequest(ctx context.Context, id string, opts ...RequestOption) (*UpgradeRequest, error) {
 	var req UpgradeRequest
-	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/billing/upgrade-requests/%s", id), nil, &req, opts...)
+	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/billing/upgrade-requests/%s", pathSegment(id)), nil, &req, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func (s *BillingService) GetUpgradeRequest(ctx context.Context, id string, opts 
 // CancelUpgradeRequest withdraws a pending upgrade request.
 func (s *BillingService) CancelUpgradeRequest(ctx context.Context, id string, opts ...RequestOption) (*UpgradeRequest, error) {
 	var req UpgradeRequest
-	err := s.client.do(ctx, http.MethodPost, fmt.Sprintf("/v1/billing/upgrade-requests/%s/cancel", id), nil, &req, opts...)
+	err := s.client.do(ctx, http.MethodPost, fmt.Sprintf("/v1/billing/upgrade-requests/%s/cancel", pathSegment(id)), nil, &req, opts...)
 	if err != nil {
 		return nil, err
 	}

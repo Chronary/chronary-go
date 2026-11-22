@@ -25,7 +25,7 @@ func (s *AgentService) Create(ctx context.Context, params *CreateAgentParams, op
 // Get retrieves an agent by ID.
 func (s *AgentService) Get(ctx context.Context, id string, opts ...RequestOption) (*Agent, error) {
 	var agent Agent
-	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/agents/%s", id), nil, &agent, opts...)
+	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/agents/%s", pathSegment(id)), nil, &agent, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ func (s *AgentService) List(ctx context.Context, params *ListAgentsParams) *Page
 // Update updates an agent by ID.
 func (s *AgentService) Update(ctx context.Context, id string, params *UpdateAgentParams, opts ...RequestOption) (*Agent, error) {
 	var agent Agent
-	err := s.client.do(ctx, http.MethodPatch, fmt.Sprintf("/v1/agents/%s", id), params, &agent, opts...)
+	err := s.client.do(ctx, http.MethodPatch, fmt.Sprintf("/v1/agents/%s", pathSegment(id)), params, &agent, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func (s *AgentService) Update(ctx context.Context, id string, params *UpdateAgen
 
 // Delete deletes an agent by ID.
 func (s *AgentService) Delete(ctx context.Context, id string, opts ...RequestOption) error {
-	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/agents/%s", id), nil, opts...)
+	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/agents/%s", pathSegment(id)), nil, opts...)
 }
 
 // ListCalendars returns a paginated iterator over an agent's calendars.
@@ -69,7 +69,7 @@ func (s *AgentService) ListCalendars(ctx context.Context, agentID string, params
 		q.Set("limit", fmt.Sprintf("%d", limit))
 		q.Set("offset", fmt.Sprintf("%d", offset))
 		var resp ListResponse[Calendar]
-		err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/agents/%s/calendars?%s", agentID, q.Encode()), nil, &resp)
+		err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/agents/%s/calendars?%s", pathSegment(agentID), q.Encode()), nil, &resp)
 		if err != nil {
 			return nil, err
 		}
@@ -84,7 +84,7 @@ func (s *AgentService) ListEvents(ctx context.Context, agentID string, params *L
 		q.Set("limit", fmt.Sprintf("%d", limit))
 		q.Set("offset", fmt.Sprintf("%d", offset))
 		var resp ListResponse[Event]
-		err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/agents/%s/events?%s", agentID, q.Encode()), nil, &resp)
+		err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/agents/%s/events?%s", pathSegment(agentID), q.Encode()), nil, &resp)
 		if err != nil {
 			return nil, err
 		}
@@ -99,7 +99,7 @@ func (s *AgentService) ListICalSubscriptions(ctx context.Context, agentID string
 		q.Set("limit", fmt.Sprintf("%d", limit))
 		q.Set("offset", fmt.Sprintf("%d", offset))
 		var resp ListResponse[ICalSubscription]
-		err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/agents/%s/ical-subscriptions?%s", agentID, q.Encode()), nil, &resp)
+		err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/agents/%s/ical-subscriptions?%s", pathSegment(agentID), q.Encode()), nil, &resp)
 		if err != nil {
 			return nil, err
 		}

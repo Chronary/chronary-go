@@ -14,7 +14,7 @@ type ICalSubscriptionService struct {
 // Create creates a new iCal subscription for an agent.
 func (s *ICalSubscriptionService) Create(ctx context.Context, agentID string, params *CreateICalSubscriptionParams, opts ...RequestOption) (*ICalSubscription, error) {
 	var sub ICalSubscription
-	err := s.client.do(ctx, http.MethodPost, fmt.Sprintf("/v1/agents/%s/ical-subscriptions", agentID), params, &sub, opts...)
+	err := s.client.do(ctx, http.MethodPost, fmt.Sprintf("/v1/agents/%s/ical-subscriptions", pathSegment(agentID)), params, &sub, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -24,7 +24,7 @@ func (s *ICalSubscriptionService) Create(ctx context.Context, agentID string, pa
 // Get retrieves an iCal subscription by ID.
 func (s *ICalSubscriptionService) Get(ctx context.Context, id string, opts ...RequestOption) (*ICalSubscription, error) {
 	var sub ICalSubscription
-	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/ical-subscriptions/%s", id), nil, &sub, opts...)
+	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/ical-subscriptions/%s", pathSegment(id)), nil, &sub, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func (s *ICalSubscriptionService) List(ctx context.Context, agentID string, para
 		q.Set("limit", fmt.Sprintf("%d", limit))
 		q.Set("offset", fmt.Sprintf("%d", offset))
 		var resp ListResponse[ICalSubscription]
-		err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/agents/%s/ical-subscriptions?%s", agentID, q.Encode()), nil, &resp)
+		err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/agents/%s/ical-subscriptions?%s", pathSegment(agentID), q.Encode()), nil, &resp)
 		if err != nil {
 			return nil, err
 		}
@@ -49,7 +49,7 @@ func (s *ICalSubscriptionService) List(ctx context.Context, agentID string, para
 // Update updates an iCal subscription by ID.
 func (s *ICalSubscriptionService) Update(ctx context.Context, id string, params *UpdateICalSubscriptionParams, opts ...RequestOption) (*ICalSubscription, error) {
 	var sub ICalSubscription
-	err := s.client.do(ctx, http.MethodPatch, fmt.Sprintf("/v1/ical-subscriptions/%s", id), params, &sub, opts...)
+	err := s.client.do(ctx, http.MethodPatch, fmt.Sprintf("/v1/ical-subscriptions/%s", pathSegment(id)), params, &sub, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func (s *ICalSubscriptionService) Update(ctx context.Context, id string, params 
 
 // Delete deletes an iCal subscription by ID.
 func (s *ICalSubscriptionService) Delete(ctx context.Context, id string, opts ...RequestOption) error {
-	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/ical-subscriptions/%s", id), nil, opts...)
+	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/ical-subscriptions/%s", pathSegment(id)), nil, opts...)
 }
 
 // Sync starts an immediate fetch of an iCal subscription's feed and returns as
@@ -66,14 +66,14 @@ func (s *ICalSubscriptionService) Delete(ctx context.Context, id string, opts ..
 // LastSyncedAt / LastError. A paused feed returns a 409 error, and a second
 // sync of the same feed within a minute returns a 429 error.
 func (s *ICalSubscriptionService) Sync(ctx context.Context, id string, opts ...RequestOption) error {
-	return s.client.doNoContent(ctx, http.MethodPost, fmt.Sprintf("/v1/ical-subscriptions/%s/sync", id), nil, opts...)
+	return s.client.doNoContent(ctx, http.MethodPost, fmt.Sprintf("/v1/ical-subscriptions/%s/sync", pathSegment(id)), nil, opts...)
 }
 
 // Pause stops polling an iCal subscription until it is resumed. Pausing a
 // paused subscription changes nothing.
 func (s *ICalSubscriptionService) Pause(ctx context.Context, id string, opts ...RequestOption) (*ICalSubscription, error) {
 	var sub ICalSubscription
-	err := s.client.do(ctx, http.MethodPost, fmt.Sprintf("/v1/ical-subscriptions/%s/pause", id), nil, &sub, opts...)
+	err := s.client.do(ctx, http.MethodPost, fmt.Sprintf("/v1/ical-subscriptions/%s/pause", pathSegment(id)), nil, &sub, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +84,7 @@ func (s *ICalSubscriptionService) Pause(ctx context.Context, id string, opts ...
 // its last error.
 func (s *ICalSubscriptionService) Resume(ctx context.Context, id string, opts ...RequestOption) (*ICalSubscription, error) {
 	var sub ICalSubscription
-	err := s.client.do(ctx, http.MethodPost, fmt.Sprintf("/v1/ical-subscriptions/%s/resume", id), nil, &sub, opts...)
+	err := s.client.do(ctx, http.MethodPost, fmt.Sprintf("/v1/ical-subscriptions/%s/resume", pathSegment(id)), nil, &sub, opts...)
 	if err != nil {
 		return nil, err
 	}

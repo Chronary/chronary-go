@@ -2,6 +2,10 @@
 
 All notable changes to `chronary-go` will be documented in this file starting with the soft-launch release.
 
+## 0.12.2 — unreleased
+
+- **Path parameters are escaped (#2519).** Every ID a method puts into the URL path now goes through `url.PathEscape` as one segment, so a value such as `../agents/agt_1`, `whk_1#` or `evt_1?expand=all` can no longer turn `Events.DeleteByID` or `Events.GetByID` into a call on another resource or add a query string. `""`, `"."` and `".."` are refused before any request is sent: the method returns an `*Error` with `Type: "validation_error"` and `StatusCode: 0` (`errors.Is(err, chronary.ErrValidation)` holds). Real Chronary IDs are unaffected.
+
 ## 0.12.1 — unreleased
 
 - `ProposalResponse` gains `AutoResolved` and `AutoResolveError` (`*AutoResolveError{Code, Message}`), set only on the `Scheduling.Respond` result. When the last response's auto-resolve fails, the API now answers 200 with `auto_resolve_error` instead of an error status, because the response was saved; `Message` says what to do next (usually `Scheduling.Resolve`). Don't respond again (#2540).

@@ -15,7 +15,7 @@ type EventService struct {
 // Create creates a new event on a calendar.
 func (s *EventService) Create(ctx context.Context, calendarID string, params *CreateEventParams, opts ...RequestOption) (*Event, error) {
 	var event Event
-	err := s.client.do(ctx, http.MethodPost, fmt.Sprintf("/v1/calendars/%s/events", calendarID), params, &event, opts...)
+	err := s.client.do(ctx, http.MethodPost, fmt.Sprintf("/v1/calendars/%s/events", pathSegment(calendarID)), params, &event, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -26,7 +26,7 @@ func (s *EventService) Create(ctx context.Context, calendarID string, params *Cr
 // the API mounts single-event reads under /v1/calendars/{cal_id}/events/{id}.
 func (s *EventService) Get(ctx context.Context, calendarID, eventID string, opts ...RequestOption) (*Event, error) {
 	var event Event
-	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/calendars/%s/events/%s", calendarID, eventID), nil, &event, opts...)
+	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/calendars/%s/events/%s", pathSegment(calendarID), pathSegment(eventID)), nil, &event, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -39,9 +39,9 @@ func (s *EventService) List(ctx context.Context, params *ListEventsParams) *Page
 	return newPageIterator(paramLimit(params), func(ctx context.Context, offset, limit int) (*ListResponse[Event], error) {
 		var basePath string
 		if params != nil && params.CalendarID != nil {
-			basePath = fmt.Sprintf("/v1/calendars/%s/events", *params.CalendarID)
+			basePath = fmt.Sprintf("/v1/calendars/%s/events", pathSegment(*params.CalendarID))
 		} else if params != nil && params.AgentID != nil {
-			basePath = fmt.Sprintf("/v1/agents/%s/events", *params.AgentID)
+			basePath = fmt.Sprintf("/v1/agents/%s/events", pathSegment(*params.AgentID))
 		} else {
 			return nil, &Error{Type: "validation_error", Message: "ListEventsParams requires CalendarID or AgentID"}
 		}
@@ -86,7 +86,7 @@ func (s *EventService) ListAll(ctx context.Context, params *ListOrgEventsParams)
 // Update updates an event by ID.
 func (s *EventService) Update(ctx context.Context, calendarID, eventID string, params *UpdateEventParams, opts ...RequestOption) (*Event, error) {
 	var event Event
-	err := s.client.do(ctx, http.MethodPatch, fmt.Sprintf("/v1/calendars/%s/events/%s", calendarID, eventID), params, &event, opts...)
+	err := s.client.do(ctx, http.MethodPatch, fmt.Sprintf("/v1/calendars/%s/events/%s", pathSegment(calendarID), pathSegment(eventID)), params, &event, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func (s *EventService) Update(ctx context.Context, calendarID, eventID string, p
 
 // Delete deletes an event by ID.
 func (s *EventService) Delete(ctx context.Context, calendarID, eventID string, opts ...RequestOption) error {
-	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/calendars/%s/events/%s", calendarID, eventID), nil, opts...)
+	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/calendars/%s/events/%s", pathSegment(calendarID), pathSegment(eventID)), nil, opts...)
 }
 
 // CancelOccurrence cancels a single occurrence of a recurring series (EXDATE)
@@ -104,7 +104,7 @@ func (s *EventService) Delete(ctx context.Context, calendarID, eventID string, o
 func (s *EventService) CancelOccurrence(ctx context.Context, calendarID, eventID, occurrenceStart string, opts ...RequestOption) (*Event, error) {
 	q := url.Values{"occurrence_start": {occurrenceStart}}
 	var event Event
-	err := s.client.do(ctx, http.MethodDelete, fmt.Sprintf("/v1/calendars/%s/events/%s?%s", calendarID, eventID, q.Encode()), nil, &event, opts...)
+	err := s.client.do(ctx, http.MethodDelete, fmt.Sprintf("/v1/calendars/%s/events/%s?%s", pathSegment(calendarID), pathSegment(eventID), q.Encode()), nil, &event, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func (s *EventService) CancelOccurrence(ctx context.Context, calendarID, eventID
 // from the event, so no calendar ID is required.
 func (s *EventService) GetByID(ctx context.Context, eventID string, opts ...RequestOption) (*Event, error) {
 	var event Event
-	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/events/%s", eventID), nil, &event, opts...)
+	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/events/%s", pathSegment(eventID)), nil, &event, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func (s *EventService) GetByID(ctx context.Context, eventID string, opts ...Requ
 // from the event, so no calendar ID is required.
 func (s *EventService) UpdateByID(ctx context.Context, eventID string, params *UpdateEventParams, opts ...RequestOption) (*Event, error) {
 	var event Event
-	err := s.client.do(ctx, http.MethodPatch, fmt.Sprintf("/v1/events/%s", eventID), params, &event, opts...)
+	err := s.client.do(ctx, http.MethodPatch, fmt.Sprintf("/v1/events/%s", pathSegment(eventID)), params, &event, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func (s *EventService) UpdateByID(ctx context.Context, eventID string, params *U
 // DeleteByID deletes an event by ID alone. The calendar is resolved internally
 // from the event, so no calendar ID is required.
 func (s *EventService) DeleteByID(ctx context.Context, eventID string, opts ...RequestOption) error {
-	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/events/%s", eventID), nil, opts...)
+	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/events/%s", pathSegment(eventID)), nil, opts...)
 }
 
 // CancelOccurrenceByID cancels a single occurrence of a recurring series
@@ -146,7 +146,7 @@ func (s *EventService) DeleteByID(ctx context.Context, eventID string, opts ...R
 func (s *EventService) CancelOccurrenceByID(ctx context.Context, eventID, occurrenceStart string, opts ...RequestOption) (*Event, error) {
 	q := url.Values{"occurrence_start": {occurrenceStart}}
 	var event Event
-	err := s.client.do(ctx, http.MethodDelete, fmt.Sprintf("/v1/events/%s?%s", eventID, q.Encode()), nil, &event, opts...)
+	err := s.client.do(ctx, http.MethodDelete, fmt.Sprintf("/v1/events/%s?%s", pathSegment(eventID), q.Encode()), nil, &event, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +157,7 @@ func (s *EventService) CancelOccurrenceByID(ctx context.Context, eventID, occurr
 // Returns 409 if the event is not a hold or the hold has expired.
 func (s *EventService) Confirm(ctx context.Context, eventID string, opts ...RequestOption) (*Event, error) {
 	var event Event
-	err := s.client.do(ctx, http.MethodPut, fmt.Sprintf("/v1/events/%s/confirm", eventID), nil, &event, opts...)
+	err := s.client.do(ctx, http.MethodPut, fmt.Sprintf("/v1/events/%s/confirm", pathSegment(eventID)), nil, &event, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +168,7 @@ func (s *EventService) Confirm(ctx context.Context, eventID string, opts ...Requ
 // Returns 409 if the event is not a hold.
 func (s *EventService) Release(ctx context.Context, eventID string, opts ...RequestOption) (*Event, error) {
 	var event Event
-	err := s.client.do(ctx, http.MethodPut, fmt.Sprintf("/v1/events/%s/release", eventID), nil, &event, opts...)
+	err := s.client.do(ctx, http.MethodPut, fmt.Sprintf("/v1/events/%s/release", pathSegment(eventID)), nil, &event, opts...)
 	if err != nil {
 		return nil, err
 	}

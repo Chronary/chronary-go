@@ -24,7 +24,7 @@ func (s *CalendarService) Create(ctx context.Context, params *CreateCalendarPara
 // CreateForAgent creates a new calendar scoped to an agent.
 func (s *CalendarService) CreateForAgent(ctx context.Context, agentID string, params *CreateCalendarParams, opts ...RequestOption) (*Calendar, error) {
 	var cal Calendar
-	err := s.client.do(ctx, http.MethodPost, fmt.Sprintf("/v1/agents/%s/calendars", agentID), params, &cal, opts...)
+	err := s.client.do(ctx, http.MethodPost, fmt.Sprintf("/v1/agents/%s/calendars", pathSegment(agentID)), params, &cal, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +34,7 @@ func (s *CalendarService) CreateForAgent(ctx context.Context, agentID string, pa
 // Get retrieves a calendar by ID.
 func (s *CalendarService) Get(ctx context.Context, id string, opts ...RequestOption) (*Calendar, error) {
 	var cal Calendar
-	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/calendars/%s", id), nil, &cal, opts...)
+	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/calendars/%s", pathSegment(id)), nil, &cal, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (s *CalendarService) Get(ctx context.Context, id string, opts ...RequestOpt
 // elsewhere can be served for up to 5 minutes. Organization keys only.
 func (s *CalendarService) RotateICalToken(ctx context.Context, id string, opts ...RequestOption) (*Calendar, error) {
 	var cal Calendar
-	err := s.client.do(ctx, http.MethodPost, fmt.Sprintf("/v1/calendars/%s/ical-token/rotate", id), nil, &cal, opts...)
+	err := s.client.do(ctx, http.MethodPost, fmt.Sprintf("/v1/calendars/%s/ical-token/rotate", pathSegment(id)), nil, &cal, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func (s *CalendarService) List(ctx context.Context, params *ListCalendarsParams)
 // Update updates a calendar by ID.
 func (s *CalendarService) Update(ctx context.Context, id string, params *UpdateCalendarParams, opts ...RequestOption) (*Calendar, error) {
 	var cal Calendar
-	err := s.client.do(ctx, http.MethodPatch, fmt.Sprintf("/v1/calendars/%s", id), params, &cal, opts...)
+	err := s.client.do(ctx, http.MethodPatch, fmt.Sprintf("/v1/calendars/%s", pathSegment(id)), params, &cal, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -80,14 +80,14 @@ func (s *CalendarService) Update(ctx context.Context, id string, params *UpdateC
 
 // Delete deletes a calendar by ID.
 func (s *CalendarService) Delete(ctx context.Context, id string, opts ...RequestOption) error {
-	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/calendars/%s", id), nil, opts...)
+	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/calendars/%s", pathSegment(id)), nil, opts...)
 }
 
 // GetContext returns a live snapshot of the calendar — current event, next event,
 // recent and upcoming events, plus a derived agent live-status.
 func (s *CalendarService) GetContext(ctx context.Context, id string, opts ...RequestOption) (*CalendarContext, error) {
 	var ctxResp CalendarContext
-	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/calendars/%s/context", id), nil, &ctxResp, opts...)
+	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/calendars/%s/context", pathSegment(id)), nil, &ctxResp, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func (s *CalendarService) GetContext(ctx context.Context, id string, opts ...Req
 // are fully replaced by the provided values.
 func (s *CalendarService) SetAvailabilityRules(ctx context.Context, id string, params *SetAvailabilityRulesParams, opts ...RequestOption) (*AvailabilityRules, error) {
 	var rules AvailabilityRules
-	err := s.client.do(ctx, http.MethodPut, fmt.Sprintf("/v1/calendars/%s/availability-rules", id), params, &rules, opts...)
+	err := s.client.do(ctx, http.MethodPut, fmt.Sprintf("/v1/calendars/%s/availability-rules", pathSegment(id)), params, &rules, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func (s *CalendarService) SetAvailabilityRules(ctx context.Context, id string, p
 // Returns 404 when no rules have been configured.
 func (s *CalendarService) GetAvailabilityRules(ctx context.Context, id string, opts ...RequestOption) (*AvailabilityRules, error) {
 	var rules AvailabilityRules
-	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/calendars/%s/availability-rules", id), nil, &rules, opts...)
+	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/calendars/%s/availability-rules", pathSegment(id)), nil, &rules, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -119,5 +119,5 @@ func (s *CalendarService) GetAvailabilityRules(ctx context.Context, id string, o
 // DeleteAvailabilityRules clears the booking rules for a calendar.
 // Returns 404 when no rules have been configured.
 func (s *CalendarService) DeleteAvailabilityRules(ctx context.Context, id string, opts ...RequestOption) error {
-	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/calendars/%s/availability-rules", id), nil, opts...)
+	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/calendars/%s/availability-rules", pathSegment(id)), nil, opts...)
 }

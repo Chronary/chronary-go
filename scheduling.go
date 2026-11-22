@@ -24,7 +24,7 @@ func (s *SchedulingService) Create(ctx context.Context, params *CreateProposalPa
 // Get retrieves a proposal by ID, including its slots and responses.
 func (s *SchedulingService) Get(ctx context.Context, id string, opts ...RequestOption) (*Proposal, error) {
 	var p Proposal
-	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/scheduling/proposals/%s", id), nil, &p, opts...)
+	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/scheduling/proposals/%s", pathSegment(id)), nil, &p, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func (s *SchedulingService) List(ctx context.Context, params *ListProposalsParam
 // Respond records a participant's response (accept / decline / counter) on a proposal.
 func (s *SchedulingService) Respond(ctx context.Context, id string, params *RespondToProposalParams, opts ...RequestOption) (*ProposalResponse, error) {
 	var resp ProposalResponse
-	err := s.client.do(ctx, http.MethodPost, fmt.Sprintf("/v1/scheduling/proposals/%s/respond", id), params, &resp, opts...)
+	err := s.client.do(ctx, http.MethodPost, fmt.Sprintf("/v1/scheduling/proposals/%s/respond", pathSegment(id)), params, &resp, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func (s *SchedulingService) Respond(ctx context.Context, id string, params *Resp
 // highest-weighted accepted slot, or cancels it when no slot has unanimous accept.
 func (s *SchedulingService) Resolve(ctx context.Context, id string, opts ...RequestOption) (*ResolveProposalResponse, error) {
 	var resp ResolveProposalResponse
-	err := s.client.do(ctx, http.MethodPost, fmt.Sprintf("/v1/scheduling/proposals/%s/resolve", id), nil, &resp, opts...)
+	err := s.client.do(ctx, http.MethodPost, fmt.Sprintf("/v1/scheduling/proposals/%s/resolve", pathSegment(id)), nil, &resp, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func (s *SchedulingService) Resolve(ctx context.Context, id string, opts ...Requ
 // Cancel cancels a pending proposal. The organizer can call this at any time before resolution.
 func (s *SchedulingService) Cancel(ctx context.Context, id string, opts ...RequestOption) (*CancelProposalResponse, error) {
 	var resp CancelProposalResponse
-	err := s.client.do(ctx, http.MethodPost, fmt.Sprintf("/v1/scheduling/proposals/%s/cancel", id), nil, &resp, opts...)
+	err := s.client.do(ctx, http.MethodPost, fmt.Sprintf("/v1/scheduling/proposals/%s/cancel", pathSegment(id)), nil, &resp, opts...)
 	if err != nil {
 		return nil, err
 	}

@@ -26,6 +26,9 @@ type service struct {
 
 // do performs an HTTP request, decoding the JSON response into v.
 func (c *Client) do(ctx context.Context, method, path string, body interface{}, v interface{}, opts ...RequestOption) error {
+	if err := invalidPathError(path); err != nil {
+		return err
+	}
 	rc := resolveRequestConfig(c, opts)
 
 	var bodyReader io.Reader

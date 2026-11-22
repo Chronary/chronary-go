@@ -25,7 +25,7 @@ func (s *WebhookService) Create(ctx context.Context, params *CreateWebhookParams
 // Get retrieves a webhook by ID.
 func (s *WebhookService) Get(ctx context.Context, id string, opts ...RequestOption) (*Webhook, error) {
 	var wh Webhook
-	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/webhooks/%s", id), nil, &wh, opts...)
+	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/webhooks/%s", pathSegment(id)), nil, &wh, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ func (s *WebhookService) List(ctx context.Context, params *ListWebhooksParams) *
 // Update updates a webhook by ID.
 func (s *WebhookService) Update(ctx context.Context, id string, params *UpdateWebhookParams, opts ...RequestOption) (*Webhook, error) {
 	var wh Webhook
-	err := s.client.do(ctx, http.MethodPatch, fmt.Sprintf("/v1/webhooks/%s", id), params, &wh, opts...)
+	err := s.client.do(ctx, http.MethodPatch, fmt.Sprintf("/v1/webhooks/%s", pathSegment(id)), params, &wh, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func (s *WebhookService) Update(ctx context.Context, id string, params *UpdateWe
 
 // Delete deletes a webhook by ID.
 func (s *WebhookService) Delete(ctx context.Context, id string, opts ...RequestOption) error {
-	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/webhooks/%s", id), nil, opts...)
+	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/webhooks/%s", pathSegment(id)), nil, opts...)
 }
 
 // ListDeliveries returns a single page of delivery attempts for a webhook subscription,
@@ -73,7 +73,7 @@ func (s *WebhookService) ListDeliveries(ctx context.Context, webhookID string, p
 		q.Set("is_test", strconv.FormatBool(*params.IsTest))
 	}
 	var resp WebhookDeliveryListResponse
-	path := fmt.Sprintf("/v1/webhooks/%s/deliveries", webhookID)
+	path := fmt.Sprintf("/v1/webhooks/%s/deliveries", pathSegment(webhookID))
 	if encoded := q.Encode(); encoded != "" {
 		path += "?" + encoded
 	}
@@ -89,7 +89,7 @@ func (s *WebhookService) ListDeliveries(ctx context.Context, webhookID string, p
 // oldest first.
 func (s *WebhookService) GetDelivery(ctx context.Context, webhookID, deliveryID string, opts ...RequestOption) (*WebhookDeliveryDetail, error) {
 	var resp WebhookDeliveryDetail
-	path := fmt.Sprintf("/v1/webhooks/%s/deliveries/%s", webhookID, deliveryID)
+	path := fmt.Sprintf("/v1/webhooks/%s/deliveries/%s", pathSegment(webhookID), pathSegment(deliveryID))
 	err := s.client.do(ctx, http.MethodGet, path, nil, &resp, opts...)
 	if err != nil {
 		return nil, err
@@ -103,7 +103,7 @@ func (s *WebhookService) GetDelivery(ctx context.Context, webhookID, deliveryID 
 // returned DeliveryID for the result. Limited to 10 per minute.
 func (s *WebhookService) SendTest(ctx context.Context, webhookID string, params *SendTestWebhookParams, opts ...RequestOption) (*WebhookTestSent, error) {
 	var resp WebhookTestSent
-	path := fmt.Sprintf("/v1/webhooks/%s/test", webhookID)
+	path := fmt.Sprintf("/v1/webhooks/%s/test", pathSegment(webhookID))
 	err := s.client.do(ctx, http.MethodPost, path, params, &resp, opts...)
 	if err != nil {
 		return nil, err
@@ -119,7 +119,7 @@ func (s *WebhookService) SendTest(ctx context.Context, webhookID string, params 
 // per minute.
 func (s *WebhookService) ReplayDelivery(ctx context.Context, webhookID, deliveryID string, opts ...RequestOption) (*WebhookReplaySent, error) {
 	var resp WebhookReplaySent
-	path := fmt.Sprintf("/v1/webhooks/%s/deliveries/%s/replay", webhookID, deliveryID)
+	path := fmt.Sprintf("/v1/webhooks/%s/deliveries/%s/replay", pathSegment(webhookID), pathSegment(deliveryID))
 	err := s.client.do(ctx, http.MethodPost, path, nil, &resp, opts...)
 	if err != nil {
 		return nil, err
@@ -137,7 +137,7 @@ func (s *WebhookService) RotateSecret(ctx context.Context, webhookID string, par
 		params = &RotateWebhookSecretParams{}
 	}
 	var resp RotatedWebhookSecret
-	path := fmt.Sprintf("/v1/webhooks/%s/secret/rotate", webhookID)
+	path := fmt.Sprintf("/v1/webhooks/%s/secret/rotate", pathSegment(webhookID))
 	err := s.client.do(ctx, http.MethodPost, path, params, &resp, opts...)
 	if err != nil {
 		return nil, err

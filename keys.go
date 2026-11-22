@@ -40,5 +40,5 @@ func (s *KeysService) List(ctx context.Context, opts ...RequestOption) ([]Scoped
 
 // Delete revokes a scoped API key by ID. Idempotent: revoking an already-revoked key returns 404.
 func (s *KeysService) Delete(ctx context.Context, id string, opts ...RequestOption) error {
-	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/keys/%s", id), nil, opts...)
+	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/keys/%s", pathSegment(id)), nil, opts...)
 }

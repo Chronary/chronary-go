@@ -14,7 +14,7 @@ type ConnectionLinksService struct{ service }
 
 func (s *ConnectionLinksService) Create(ctx context.Context, calendarID string, params *CreateConnectionLinkParams, opts ...RequestOption) (*ConnectionLink, error) {
 	var link ConnectionLink
-	err := s.client.do(ctx, http.MethodPost, fmt.Sprintf("/v1/calendars/%s/connection-links", calendarID), params, &link, opts...)
+	err := s.client.do(ctx, http.MethodPost, fmt.Sprintf("/v1/calendars/%s/connection-links", pathSegment(calendarID)), params, &link, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func (s *ConnectionLinksService) List(ctx context.Context, params *ListConnectio
 
 func (s *ConnectionLinksService) Get(ctx context.Context, id string, opts ...RequestOption) (*ConnectionLink, error) {
 	var link ConnectionLink
-	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/connection-links/%s", id), nil, &link, opts...)
+	err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/connection-links/%s", pathSegment(id)), nil, &link, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -57,5 +57,5 @@ func (s *ConnectionLinksService) Get(ctx context.Context, id string, opts ...Req
 }
 
 func (s *ConnectionLinksService) Cancel(ctx context.Context, id string, opts ...RequestOption) error {
-	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/connection-links/%s", id), nil, opts...)
+	return s.client.doNoContent(ctx, http.MethodDelete, fmt.Sprintf("/v1/connection-links/%s", pathSegment(id)), nil, opts...)
 }

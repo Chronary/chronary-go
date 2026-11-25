@@ -7,7 +7,7 @@ import (
 )
 
 func TestPageIteratorSinglePage(t *testing.T) {
-	iter := newPageIterator(50, func(ctx context.Context, offset, limit int) (*ListResponse[Agent], error) {
+	iter := newPageIterator(50, 0, func(ctx context.Context, offset, limit int) (*ListResponse[Agent], error) {
 		return &ListResponse[Agent]{
 			Data:  []Agent{{ID: "agt_1"}, {ID: "agt_2"}},
 			Total: 2,
@@ -24,7 +24,7 @@ func TestPageIteratorSinglePage(t *testing.T) {
 }
 
 func TestPageIteratorMultiPage(t *testing.T) {
-	iter := newPageIterator(2, func(ctx context.Context, offset, limit int) (*ListResponse[Agent], error) {
+	iter := newPageIterator(2, 0, func(ctx context.Context, offset, limit int) (*ListResponse[Agent], error) {
 		if offset == 0 {
 			return &ListResponse[Agent]{
 				Data:  []Agent{{ID: "agt_1"}, {ID: "agt_2"}},
@@ -50,7 +50,7 @@ func TestPageIteratorMultiPage(t *testing.T) {
 }
 
 func TestPageIteratorEmpty(t *testing.T) {
-	iter := newPageIterator(50, func(ctx context.Context, offset, limit int) (*ListResponse[Agent], error) {
+	iter := newPageIterator(50, 0, func(ctx context.Context, offset, limit int) (*ListResponse[Agent], error) {
 		return &ListResponse[Agent]{Data: []Agent{}, Total: 0}, nil
 	})
 
@@ -64,7 +64,7 @@ func TestPageIteratorEmpty(t *testing.T) {
 }
 
 func TestPageIteratorError(t *testing.T) {
-	iter := newPageIterator(50, func(ctx context.Context, offset, limit int) (*ListResponse[Agent], error) {
+	iter := newPageIterator(50, 0, func(ctx context.Context, offset, limit int) (*ListResponse[Agent], error) {
 		return nil, fmt.Errorf("network error")
 	})
 
@@ -75,7 +75,7 @@ func TestPageIteratorError(t *testing.T) {
 }
 
 func TestPageIteratorGetPage(t *testing.T) {
-	iter := newPageIterator(50, func(ctx context.Context, offset, limit int) (*ListResponse[Agent], error) {
+	iter := newPageIterator(50, 0, func(ctx context.Context, offset, limit int) (*ListResponse[Agent], error) {
 		return &ListResponse[Agent]{
 			Data:  []Agent{{ID: "agt_1"}},
 			Total: 3,
@@ -96,7 +96,7 @@ func TestPageIteratorGetPage(t *testing.T) {
 
 func TestPageIteratorAllEarlyBreak(t *testing.T) {
 	calls := 0
-	iter := newPageIterator(2, func(ctx context.Context, offset, limit int) (*ListResponse[Agent], error) {
+	iter := newPageIterator(2, 0, func(ctx context.Context, offset, limit int) (*ListResponse[Agent], error) {
 		calls++
 		return &ListResponse[Agent]{
 			Data:  []Agent{{ID: "agt_1"}, {ID: "agt_2"}},

@@ -8,6 +8,10 @@ type ListResponse[T any] struct {
 	Total  int `json:"total"`
 	Limit  int `json:"limit"`
 	Offset int `json:"offset"`
+	// NextCursor is set on lists that have cursors (agents, calendars, the
+	// org-wide events list): the cursor for the next page, nil on the last
+	// page. Always nil on lists that page by offset only.
+	NextCursor *string `json:"next_cursor,omitempty"`
 }
 
 // --- Agent ---
@@ -77,6 +81,10 @@ type ListAgentsParams struct {
 	IncludeCounts bool `url:"include_counts,omitempty"`
 	Limit         int  `url:"limit,omitempty"`
 	Offset        int  `url:"offset,omitempty"`
+	// Cursor is a previous page's NextCursor: the list starts there. It
+	// cannot be combined with a non-zero Offset. Iterating with All or
+	// Collect follows next_cursor by itself, past the 10,000-row offset cap.
+	Cursor *string `url:"cursor,omitempty"`
 }
 
 // --- Calendar ---
@@ -138,6 +146,10 @@ type ListCalendarsParams struct {
 	Q      *string `url:"q,omitempty"`
 	Limit  int     `url:"limit,omitempty"`
 	Offset int     `url:"offset,omitempty"`
+	// Cursor is a previous page's NextCursor: the list starts there. It
+	// cannot be combined with a non-zero Offset. Iterating with All or
+	// Collect follows next_cursor by itself, past the 10,000-row offset cap.
+	Cursor *string `url:"cursor,omitempty"`
 }
 
 // --- Booking page ---
@@ -410,6 +422,10 @@ type ListOrgEventsParams struct {
 	// Limit is at most 100.
 	Limit  int `url:"limit,omitempty"`
 	Offset int `url:"offset,omitempty"`
+	// Cursor is a previous page's NextCursor: the list starts there. It
+	// cannot be combined with a non-zero Offset. Iterating with All or
+	// Collect follows next_cursor by itself, past the 10,000-row offset cap.
+	Cursor *string `url:"cursor,omitempty"`
 }
 
 // --- Availability ---
@@ -538,7 +554,8 @@ type Webhook struct {
 	DeactivatedReason *string `json:"deactivatedReason,omitempty"`
 	// PreviousSecretExpiresAt is set while a secret rotation's grace window is
 	// open: when the replaced secret stops working. Until then deliveries also
-	// carry X-Signature-Previous. Nil when no window is open.
+	// carry X-Signature-V2-Previous and X-Signature-Previous. Nil when no
+	// window is open.
 	PreviousSecretExpiresAt *string   `json:"previousSecretExpiresAt,omitempty"`
 	CreatedAt               time.Time `json:"createdAt"`
 }
@@ -821,10 +838,19 @@ var WebhookEventTypes = []WebhookEventType{
 	WebhookEventUsageThresholdCrossed,
 }
 
-// WebhookEvent represents a parsed webhook delivery payload.
+// WebhookEvent represents a verified webhook delivery from ConstructEvent.
+// Every field is covered by the delivery's X-Signature-V2.
 type WebhookEvent struct {
-	Type WebhookEventType       `json:"type"`
+	// Type is X-Chronary-Event-Type.
+	Type WebhookEventType `json:"type"`
+	// Data is the parsed raw body.
 	Data map[string]interface{} `json:"data"`
+	// DeliveryID is X-Delivery-Id: the same on every retry, so deduplicate on it.
+	DeliveryID string `json:"delivery_id"`
+	// Test is true for a test send (X-Chronary-Test: 1).
+	Test bool `json:"test"`
+	// ReplayOf is X-Chronary-Replay-Of on a replay (the original delivery id); "" otherwise.
+	ReplayOf string `json:"replay_of,omitempty"`
 }
 
 // --- Calendar context ---
@@ -1294,10 +1320,12 @@ type AuditLogEntry struct {
 	// ActorKeyPrefix holds the first 20 chars of the actor API key (never the full key).
 	// Nil for console sessions and the system.
 	ActorKeyPrefix *string `json:"actor_key_prefix"`
-	// ActorType is who acted: "session", "org_key", "agent_key" or "system".
+	// ActorType is who acted: "session", "org_key", "agent_key", "oauth_app" (an app
+	// connected to the hosted MCP server by signing in, such as Claude) or "system".
 	// Nil on older entries that could not be attributed.
 	ActorType *string `json:"actor_type"`
-	// ActorID is the API key id for a key, the organization id for a console session.
+	// ActorID is the API key id for a key, the organization id for a console session,
+	// the connection id for "oauth_app".
 	ActorID *string `json:"actor_id"`
 	// ActorLabel is the key label (or key prefix), the session email, or "Chronary".
 	ActorLabel *string `json:"actor_label"`

@@ -91,6 +91,8 @@ page, err := client.Agents.List(ctx, &chronary.ListAgentsParams{
 }).GetPage(ctx, 0)
 ```
 
+`Agents.List`, `Calendars.List`, `Agents.ListCalendars` and `Events.ListAll` page by cursor: `All` and `Collect` follow `next_cursor`, so they are not limited by the API's 10,000-row cap on `offset`. For manual paging, pass `page.NextCursor` to `GetPageAfter`, or set `Cursor` in the list params to start there. Other lists page by offset.
+
 ## Error Handling
 
 Errors from the API are returned as `*chronary.Error` and support `errors.Is` and `errors.As`:
@@ -189,8 +191,10 @@ if err != nil {
     http.Error(w, "Invalid webhook", 403)
     return
 }
-fmt.Printf("Received: %s\n", event.Type)
+fmt.Printf("Received: %s (delivery %s)\n", event.Type, event.DeliveryID)
 ```
+
+Verification checks `X-Signature-V2`, which covers the body, `X-Timestamp`, `X-Delivery-Id`, `X-Chronary-Event-Type`, `X-Chronary-Test` and `X-Chronary-Replay-Of`, so `event.Type`, `event.DeliveryID`, `event.Test` and `event.ReplayOf` can be trusted. The deprecated v1 `X-Signature` is not accepted. In tests, `chronary.SignedHeadersFor(payload, secret, chronary.SignedDelivery{...})` builds signed headers.
 
 ## Configuration
 
@@ -211,7 +215,7 @@ The SDK automatically retries failed requests with exponential backoff for:
 - HTTP 429 (Rate Limited) -- respects `Retry-After` header
 - HTTP 500, 502, 503, 504 (Server Errors)
 
-Default: 2 retries. Disable with `WithMaxRetries(0)`.
+Default: 2 retries. Disable with `WithMaxRetries(0)`. A monthly quota error (`quota_exceeded`) and any refusal whose `Retry-After` is longer than 60 seconds (an iCal sync cooldown, a daily sign-up cap) are returned at once, not retried.
 
 ## Resources
 

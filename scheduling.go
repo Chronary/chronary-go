@@ -33,7 +33,7 @@ func (s *SchedulingService) Get(ctx context.Context, id string, opts ...RequestO
 
 // List returns a paginated iterator over proposals.
 func (s *SchedulingService) List(ctx context.Context, params *ListProposalsParams) *PageIterator[ProposalSummary] {
-	return newPageIterator(paramLimit(params), func(ctx context.Context, offset, limit int) (*ListResponse[ProposalSummary], error) {
+	return newPageIterator(paramLimit(params), paramOffset(params), func(ctx context.Context, offset, limit int) (*ListResponse[ProposalSummary], error) {
 		q := addQueryParams(params)
 		q.Set("limit", fmt.Sprintf("%d", limit))
 		q.Set("offset", fmt.Sprintf("%d", offset))

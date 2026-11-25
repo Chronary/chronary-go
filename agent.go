@@ -34,10 +34,9 @@ func (s *AgentService) Get(ctx context.Context, id string, opts ...RequestOption
 
 // List returns a paginated iterator over agents.
 func (s *AgentService) List(ctx context.Context, params *ListAgentsParams) *PageIterator[Agent] {
-	return newPageIterator(paramLimit(params), func(ctx context.Context, offset, limit int) (*ListResponse[Agent], error) {
+	return newCursorPageIterator(paramLimit(params), paramOffset(params), func(ctx context.Context, offset, limit int, cursor string) (*ListResponse[Agent], error) {
 		q := addQueryParams(params)
-		q.Set("limit", fmt.Sprintf("%d", limit))
-		q.Set("offset", fmt.Sprintf("%d", offset))
+		setPageQuery(q, offset, limit, cursor)
 		var resp ListResponse[Agent]
 		err := s.client.do(ctx, http.MethodGet, "/v1/agents?"+q.Encode(), nil, &resp)
 		if err != nil {
@@ -64,10 +63,9 @@ func (s *AgentService) Delete(ctx context.Context, id string, opts ...RequestOpt
 
 // ListCalendars returns a paginated iterator over an agent's calendars.
 func (s *AgentService) ListCalendars(ctx context.Context, agentID string, params *ListCalendarsParams) *PageIterator[Calendar] {
-	return newPageIterator(paramLimit(params), func(ctx context.Context, offset, limit int) (*ListResponse[Calendar], error) {
+	return newCursorPageIterator(paramLimit(params), paramOffset(params), func(ctx context.Context, offset, limit int, cursor string) (*ListResponse[Calendar], error) {
 		q := addQueryParams(params)
-		q.Set("limit", fmt.Sprintf("%d", limit))
-		q.Set("offset", fmt.Sprintf("%d", offset))
+		setPageQuery(q, offset, limit, cursor)
 		var resp ListResponse[Calendar]
 		err := s.client.do(ctx, http.MethodGet, fmt.Sprintf("/v1/agents/%s/calendars?%s", pathSegment(agentID), q.Encode()), nil, &resp)
 		if err != nil {
@@ -79,7 +77,7 @@ func (s *AgentService) ListCalendars(ctx context.Context, agentID string, params
 
 // ListEvents returns a paginated iterator over an agent's events.
 func (s *AgentService) ListEvents(ctx context.Context, agentID string, params *ListEventsParams) *PageIterator[Event] {
-	return newPageIterator(paramLimit(params), func(ctx context.Context, offset, limit int) (*ListResponse[Event], error) {
+	return newPageIterator(paramLimit(params), paramOffset(params), func(ctx context.Context, offset, limit int) (*ListResponse[Event], error) {
 		q := addQueryParams(params)
 		q.Set("limit", fmt.Sprintf("%d", limit))
 		q.Set("offset", fmt.Sprintf("%d", offset))
@@ -94,7 +92,7 @@ func (s *AgentService) ListEvents(ctx context.Context, agentID string, params *L
 
 // ListICalSubscriptions returns a paginated iterator over an agent's iCal subscriptions.
 func (s *AgentService) ListICalSubscriptions(ctx context.Context, agentID string, params *ListICalSubscriptionsParams) *PageIterator[ICalSubscription] {
-	return newPageIterator(paramLimit(params), func(ctx context.Context, offset, limit int) (*ListResponse[ICalSubscription], error) {
+	return newPageIterator(paramLimit(params), paramOffset(params), func(ctx context.Context, offset, limit int) (*ListResponse[ICalSubscription], error) {
 		q := addQueryParams(params)
 		q.Set("limit", fmt.Sprintf("%d", limit))
 		q.Set("offset", fmt.Sprintf("%d", offset))
@@ -141,6 +139,50 @@ func paramLimit(params interface{}) int {
 	case *ListProposalsParams:
 		if p != nil {
 			return p.Limit
+		}
+	case *ListBookingPagesParams:
+		if p != nil {
+			return p.Limit
+		}
+	}
+	return 0
+}
+
+// paramOffset extracts Offset from a list params struct, returning 0 if nil
+// or an unknown type. Iterators start at it (#2720).
+func paramOffset(params interface{}) int {
+	switch p := params.(type) {
+	case *ListAgentsParams:
+		if p != nil {
+			return p.Offset
+		}
+	case *ListCalendarsParams:
+		if p != nil {
+			return p.Offset
+		}
+	case *ListEventsParams:
+		if p != nil {
+			return p.Offset
+		}
+	case *ListOrgEventsParams:
+		if p != nil {
+			return p.Offset
+		}
+	case *ListWebhooksParams:
+		if p != nil {
+			return p.Offset
+		}
+	case *ListICalSubscriptionsParams:
+		if p != nil {
+			return p.Offset
+		}
+	case *ListProposalsParams:
+		if p != nil {
+			return p.Offset
+		}
+	case *ListBookingPagesParams:
+		if p != nil {
+			return p.Offset
 		}
 	}
 	return 0

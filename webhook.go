@@ -34,7 +34,7 @@ func (s *WebhookService) Get(ctx context.Context, id string, opts ...RequestOpti
 
 // List returns a paginated iterator over webhooks.
 func (s *WebhookService) List(ctx context.Context, params *ListWebhooksParams) *PageIterator[Webhook] {
-	return newPageIterator(paramLimit(params), func(ctx context.Context, offset, limit int) (*ListResponse[Webhook], error) {
+	return newPageIterator(paramLimit(params), paramOffset(params), func(ctx context.Context, offset, limit int) (*ListResponse[Webhook], error) {
 		q := addQueryParams(params)
 		q.Set("limit", fmt.Sprintf("%d", limit))
 		q.Set("offset", fmt.Sprintf("%d", offset))
@@ -128,10 +128,11 @@ func (s *WebhookService) ReplayDelivery(ctx context.Context, webhookID, delivery
 }
 
 // RotateSecret rotates the endpoint's signing secret (Developer or Pro) and returns the new
-// secret once. It signs X-Signature from the next attempt; the replaced secret
-// keeps signing X-Signature-Previous until params.ExpireOldIn has passed ("now",
-// "1h", "24h" by default, or "7d"). VerifySignature accepts either header, so
-// receivers can switch secrets in that window. params may be nil.
+// secret once. It signs X-Signature-V2 (and v1 X-Signature) from the next
+// attempt; the replaced secret keeps signing X-Signature-V2-Previous (and
+// X-Signature-Previous) until params.ExpireOldIn has passed ("now", "1h", "24h"
+// by default, or "7d"). VerifySignature accepts a match on either v2 header,
+// so receivers can switch secrets in that window. params may be nil.
 func (s *WebhookService) RotateSecret(ctx context.Context, webhookID string, params *RotateWebhookSecretParams, opts ...RequestOption) (*RotatedWebhookSecret, error) {
 	if params == nil {
 		params = &RotateWebhookSecretParams{}

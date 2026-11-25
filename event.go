@@ -36,7 +36,7 @@ func (s *EventService) Get(ctx context.Context, calendarID, eventID string, opts
 // List returns a paginated iterator over events.
 // Provide either CalendarID or AgentID in params to scope the query.
 func (s *EventService) List(ctx context.Context, params *ListEventsParams) *PageIterator[Event] {
-	return newPageIterator(paramLimit(params), func(ctx context.Context, offset, limit int) (*ListResponse[Event], error) {
+	return newPageIterator(paramLimit(params), paramOffset(params), func(ctx context.Context, offset, limit int) (*ListResponse[Event], error) {
 		var basePath string
 		if params != nil && params.CalendarID != nil {
 			basePath = fmt.Sprintf("/v1/calendars/%s/events", pathSegment(*params.CalendarID))
@@ -65,15 +65,14 @@ func (s *EventService) List(ctx context.Context, params *ListEventsParams) *Page
 // organization's calendars (GET /v1/events), ordered by start time. An
 // agent-scoped key sees only its agent's calendars.
 func (s *EventService) ListAll(ctx context.Context, params *ListOrgEventsParams) *PageIterator[Event] {
-	return newPageIterator(paramLimit(params), func(ctx context.Context, offset, limit int) (*ListResponse[Event], error) {
+	return newCursorPageIterator(paramLimit(params), paramOffset(params), func(ctx context.Context, offset, limit int, cursor string) (*ListResponse[Event], error) {
 		q := addQueryParams(params)
 		if params != nil {
 			for _, id := range params.CalendarIDs {
 				q.Add("calendar_id", id)
 			}
 		}
-		q.Set("limit", fmt.Sprintf("%d", limit))
-		q.Set("offset", fmt.Sprintf("%d", offset))
+		setPageQuery(q, offset, limit, cursor)
 		var resp ListResponse[Event]
 		err := s.client.do(ctx, http.MethodGet, "/v1/events?"+q.Encode(), nil, &resp)
 		if err != nil {

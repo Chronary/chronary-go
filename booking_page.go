@@ -33,7 +33,7 @@ func (s *BookingPageService) Get(ctx context.Context, id string, opts ...Request
 
 // List returns a paginated iterator over booking pages.
 func (s *BookingPageService) List(ctx context.Context, params *ListBookingPagesParams) *PageIterator[BookingPage] {
-	return newPageIterator(paramLimit(params), func(ctx context.Context, offset, limit int) (*ListResponse[BookingPage], error) {
+	return newPageIterator(paramLimit(params), paramOffset(params), func(ctx context.Context, offset, limit int) (*ListResponse[BookingPage], error) {
 		q := addQueryParams(params)
 		q.Set("limit", fmt.Sprintf("%d", limit))
 		q.Set("offset", fmt.Sprintf("%d", offset))

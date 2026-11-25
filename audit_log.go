@@ -24,9 +24,11 @@ type ListAuditLogParams struct {
 	Action string
 	// ActorKeyPrefix filters by the first 20 chars of the actor API key.
 	ActorKeyPrefix string
-	// ActorType filters by who acted: "session", "org_key", "agent_key" or "system".
+	// ActorType filters by who acted: "session", "org_key", "agent_key", "oauth_app"
+	// (an app connected to the hosted MCP server by signing in, such as Claude) or "system".
 	ActorType string
-	// ActorID filters by actor id (an API key id, or the organization id for console sessions).
+	// ActorID filters by actor id (an API key id, the organization id for console sessions,
+	// or the connection id for "oauth_app").
 	ActorID string
 	// RequestID filters by the request id of the original call.
 	RequestID string

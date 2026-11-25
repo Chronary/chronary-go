@@ -133,8 +133,12 @@ func (c *Client) do(ctx context.Context, method, path string, body interface{}, 
 
 		// A monthly plan limit (429 quota_exceeded) is never retried: its
 		// Retry-After is the seconds left in the month, and asking again cannot
-		// succeed until the limit resets or the plan changes (#1936).
-		if isRetryable(resp.StatusCode) && attempt < c.maxRetries && apiErr.Type != "quota_exceeded" {
+		// succeed until the limit resets or the plan changes (#1936). Nor is any
+		// refusal whose Retry-After is beyond the retry cap (an iCal sync
+		// cooldown, a daily sign-up cap): a retry inside the window cannot
+		// succeed, so sleeping first only delays the same error (#2558).
+		if isRetryable(resp.StatusCode) && attempt < c.maxRetries && apiErr.Type != "quota_exceeded" &&
+			apiErr.RetryAfter <= maxRetryAfterSeconds {
 			continue
 		}
 		return apiErr
@@ -156,6 +160,13 @@ func resolveRequestConfig(c *Client, opts []RequestOption) requestConfig {
 	return rc
 }
 
+// maxRetryDelay caps how long the client sleeps between attempts. A refusal
+// whose Retry-After is longer is returned without a retry (#2558).
+const (
+	maxRetryDelay        = 60 * time.Second
+	maxRetryAfterSeconds = int(maxRetryDelay / time.Second)
+)
+
 func isRetryable(statusCode int) bool {
 	switch statusCode {
 	case 408, 429, 500, 502, 503, 504:
@@ -169,16 +180,16 @@ func backoff(attempt int, lastErr error) time.Duration {
 
 	// Respect Retry-After header from rate limit errors
 	if e, ok := lastErr.(*Error); ok && e.RetryAfter > 0 {
-		ra := time.Duration(e.RetryAfter) * time.Second
-		if ra > 60*time.Second {
-			ra = 60 * time.Second
+		// Compare in seconds first: a huge value would overflow time.Duration.
+		if e.RetryAfter >= maxRetryAfterSeconds {
+			return maxRetryDelay
 		}
-		return ra
+		return time.Duration(e.RetryAfter) * time.Second
 	}
 
 	delay := time.Duration(float64(base) * math.Pow(2, float64(attempt-1)))
-	if delay > 60*time.Second {
-		delay = 60 * time.Second
+	if delay > maxRetryDelay {
+		delay = maxRetryDelay
 	}
 
 	// Add jitter: 0..base

@@ -33,7 +33,7 @@ func (s *ICalSubscriptionService) Get(ctx context.Context, id string, opts ...Re
 
 // List returns a paginated iterator over an agent's iCal subscriptions.
 func (s *ICalSubscriptionService) List(ctx context.Context, agentID string, params *ListICalSubscriptionsParams) *PageIterator[ICalSubscription] {
-	return newPageIterator(paramLimit(params), func(ctx context.Context, offset, limit int) (*ListResponse[ICalSubscription], error) {
+	return newPageIterator(paramLimit(params), paramOffset(params), func(ctx context.Context, offset, limit int) (*ListResponse[ICalSubscription], error) {
 		q := addQueryParams(params)
 		q.Set("limit", fmt.Sprintf("%d", limit))
 		q.Set("offset", fmt.Sprintf("%d", offset))

@@ -55,10 +55,9 @@ func (s *CalendarService) RotateICalToken(ctx context.Context, id string, opts .
 
 // List returns a paginated iterator over calendars.
 func (s *CalendarService) List(ctx context.Context, params *ListCalendarsParams) *PageIterator[Calendar] {
-	return newPageIterator(paramLimit(params), func(ctx context.Context, offset, limit int) (*ListResponse[Calendar], error) {
+	return newCursorPageIterator(paramLimit(params), paramOffset(params), func(ctx context.Context, offset, limit int, cursor string) (*ListResponse[Calendar], error) {
 		q := addQueryParams(params)
-		q.Set("limit", fmt.Sprintf("%d", limit))
-		q.Set("offset", fmt.Sprintf("%d", offset))
+		setPageQuery(q, offset, limit, cursor)
 		var resp ListResponse[Calendar]
 		err := s.client.do(ctx, http.MethodGet, "/v1/calendars?"+q.Encode(), nil, &resp)
 		if err != nil {

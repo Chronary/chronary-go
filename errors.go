@@ -3,8 +3,10 @@ package chronary
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 // Error is the base error type returned by the Chronary API.
@@ -78,11 +80,7 @@ func parseErrorResponse(statusCode int, body []byte, headers http.Header) *Error
 		if err := json.Unmarshal(body, &raw); err == nil {
 			e.Body = raw.Error
 		}
-		if ra := headers.Get("Retry-After"); ra != "" {
-			if secs, err := strconv.Atoi(ra); err == nil {
-				e.RetryAfter = secs
-			}
-		}
+		e.RetryAfter = parseRetryAfter(headers.Get("Retry-After"))
 		return e
 	}
 
@@ -105,10 +103,23 @@ func parseErrorResponse(statusCode int, body []byte, headers http.Header) *Error
 	default:
 		e.Type = "api_error"
 	}
-	if ra := headers.Get("Retry-After"); ra != "" {
-		if secs, err := strconv.Atoi(ra); err == nil {
-			e.RetryAfter = secs
+	e.RetryAfter = parseRetryAfter(headers.Get("Retry-After"))
+	return e
+}
+
+// parseRetryAfter reads a Retry-After header in seconds: delta-seconds or an
+// HTTP date (rounded up; 0 once past). 0 when missing or unparseable.
+func parseRetryAfter(ra string) int {
+	if ra == "" {
+		return 0
+	}
+	if secs, err := strconv.Atoi(ra); err == nil {
+		return secs
+	}
+	if at, err := http.ParseTime(ra); err == nil {
+		if d := time.Until(at); d > 0 {
+			return int(math.Ceil(d.Seconds()))
 		}
 	}
-	return e
+	return 0
 }

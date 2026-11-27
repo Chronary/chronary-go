@@ -105,11 +105,15 @@ type Calendar struct {
 	// DefaultReminders is the calendar-level default reminder schedule applied to
 	// events that don't set their own. Values are offsets in minutes before an
 	// event's start_time (e.g. []int{10, 1440}); max 5, each 1–40320 (28 days).
-	DefaultReminders []int                  `json:"default_reminders"`
-	Metadata         map[string]interface{} `json:"metadata"`
-	DeletedAt        *string                `json:"deletedAt"`
-	CreatedAt        time.Time              `json:"createdAt"`
-	UpdatedAt        time.Time              `json:"updatedAt"`
+	DefaultReminders []int `json:"default_reminders"`
+	// PreventOverlaps is the double-booking guarantee: when true, the calendar
+	// refuses any create, reschedule, reactivation or hold confirm that would
+	// overlap an active event on it (409 conflict, Code "event_conflict").
+	PreventOverlaps bool                   `json:"prevent_overlaps"`
+	Metadata        map[string]interface{} `json:"metadata"`
+	DeletedAt       *string                `json:"deletedAt"`
+	CreatedAt       time.Time              `json:"createdAt"`
+	UpdatedAt       time.Time              `json:"updatedAt"`
 }
 
 // CreateCalendarParams are the parameters for creating a calendar.
@@ -121,8 +125,11 @@ type CreateCalendarParams struct {
 	// (28 days). nil omits the field (system default [10]);
 	// chronary.Reminders(10, 1440) sends [10,1440]; chronary.NoReminders()
 	// sends [] (events on this calendar get no reminders by default).
-	DefaultReminders *[]int                 `json:"default_reminders,omitempty"`
-	Metadata         map[string]interface{} `json:"metadata,omitempty"`
+	DefaultReminders *[]int `json:"default_reminders,omitempty"`
+	// PreventOverlaps, when chronary.Bool(true), makes the calendar refuse any
+	// event that would overlap an active event on it. nil omits it (false).
+	PreventOverlaps *bool                  `json:"prevent_overlaps,omitempty"`
+	Metadata        map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // UpdateCalendarParams are the parameters for updating a calendar.
@@ -134,8 +141,13 @@ type UpdateCalendarParams struct {
 	// 1–40320 (28 days). nil leaves it unchanged; chronary.Reminders(10, 1440)
 	// sends [10,1440]; chronary.NoReminders() sends [] (no default reminders);
 	// chronary.InheritReminders() sends null (revert to the system default [10]).
-	DefaultReminders *[]int                 `json:"default_reminders,omitempty"`
-	Metadata         map[string]interface{} `json:"metadata,omitempty"`
+	DefaultReminders *[]int `json:"default_reminders,omitempty"`
+	// PreventOverlaps turns the double-booking guarantee on or off. nil leaves
+	// it unchanged. Turning it on is refused (409, Code "calendar_has_overlaps"
+	// or "calendar_has_recurring_series") while the calendar holds overlapping
+	// active events or a running recurring series.
+	PreventOverlaps *bool                  `json:"prevent_overlaps,omitempty"`
+	Metadata        map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // ListCalendarsParams are the query parameters for listing calendars.
@@ -1251,6 +1263,10 @@ type AgentSignUpParams struct {
 	Email      string `json:"email"`
 	AgentName  string `json:"agent_name"`
 	TosVersion string `json:"tos_version"`
+	// HeardAbout is optional: how you (or your user) found Chronary, in plain
+	// text, at most 200 characters. Stored for a new organization only; never
+	// returned.
+	HeardAbout string `json:"heard_about,omitempty"`
 }
 
 // AgentSignUpResponse is the response from POST /v1/agent/sign-up. Fields beyond

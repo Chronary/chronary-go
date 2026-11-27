@@ -2,7 +2,12 @@
 
 All notable changes to `chronary-go` will be documented in this file starting with the soft-launch release.
 
-## 0.13.0 — unreleased
+## 0.13.1 — unreleased
+
+- **`AgentSignUpParams` gains `HeardAbout string` (#2651).** Optional (`omitempty`): how you or your user found Chronary, plain text; `SignUp` cuts it to 200 characters on a copy before sending. The API keeps it for a new organization only and never returns it.
+- **Calendars that refuse double bookings (#595).** `Calendar` gains `PreventOverlaps bool`, and `CreateCalendarParams` and `UpdateCalendarParams` gain `PreventOverlaps *bool` (nil leaves it out; use `chronary.Bool(true)`). With it on, the calendar refuses any event that would overlap an active event on it with a 409 `conflict`. `Error` gains `Code` (e.g. `"event_conflict"`) and `ConflictingEventIDs []string`.
+
+## 0.13.0 — 2026-11-24
 
 - **Breaking: webhook verification requires the v2 signature (#2569).** Chronary now signs every delivery twice: `X-Signature` (v1, over `<X-Timestamp>.<body>`, unchanged and deprecated) and the new `X-Signature-V2`, which also covers `X-Delivery-Id`, `X-Chronary-Event-Type`, `X-Chronary-Test` and `X-Chronary-Replay-Of`. Under v1 those headers were unsigned, so anyone holding a captured delivery could re-send it within the 5-minute tolerance under another event type (for example `event.hold_released` as `event.deleted`), with a fresh delivery id that got past deduplication, or with the test flag removed. `VerifySignature`, `VerifySignatureWithOptions` and `ConstructEvent` now check `X-Signature-V2` (or, during a secret rotation, `X-Signature-V2-Previous`) and never fall back to `X-Signature`: a delivery without `X-Signature-V2` is rejected, as is one whose event type, delivery id, test flag or replay id differs from what was signed, an `X-Chronary-Test` other than `1`, or a header value containing CR or LF. All three also require `X-Delivery-Id` and `X-Chronary-Event-Type`. Every Chronary delivery carries the v2 headers, so a receiver needs no change beyond upgrading. Function signatures are unchanged.
 - **`WebhookEvent` gains `DeliveryID`, `Test` and `ReplayOf`** (`""` when the delivery is not a replay), set by `ConstructEvent`. They are covered by the signature, so deduplicate on `event.DeliveryID`.

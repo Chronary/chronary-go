@@ -14,6 +14,9 @@ type AgentAuthService struct {
 	service
 }
 
+// heardAboutMaxRunes is the longest HeardAbout the API keeps (#2651).
+const heardAboutMaxRunes = 200
+
 // SignUp registers a new agent + org. Sends an OTP to the provided email.
 //
 // Two response shapes:
@@ -27,6 +30,15 @@ type AgentAuthService struct {
 // not the currently-published version.
 func (s *AgentAuthService) SignUp(ctx context.Context, params *AgentSignUpParams, opts ...RequestOption) (*AgentSignUpResponse, error) {
 	var resp AgentSignUpResponse
+	// HeardAbout is informational: cut to 200 characters (runes) on a copy, so
+	// a long answer never costs the sign-up and the caller's value is untouched.
+	if params != nil {
+		if r := []rune(params.HeardAbout); len(r) > heardAboutMaxRunes {
+			p := *params
+			p.HeardAbout = string(r[:heardAboutMaxRunes])
+			params = &p
+		}
+	}
 	err := s.client.do(ctx, http.MethodPost, "/v1/agent/sign-up", params, &resp, opts...)
 	if err != nil {
 		return nil, err

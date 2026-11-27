@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	chronary "github.com/Chronary/chronary-go"
@@ -1143,6 +1144,66 @@ func TestAgentAuthSignUp_Anonymous(t *testing.T) {
 	}
 	if !resp.IsNewOrg() {
 		t.Errorf("expected new-org branch, got %+v", resp)
+	}
+}
+
+func TestAgentAuthSignUp_HeardAbout(t *testing.T) {
+	var bodies []map[string]interface{}
+	_, srv := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		bodies = append(bodies, body)
+		testutil.RespondJSON(w, 200, map[string]interface{}{"message": "Verification code sent to email"})
+	}))
+	anon, err := chronary.NewClient(chronary.WithAnonymous(), chronary.WithBaseURL(srv.URL), chronary.WithMaxRetries(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	if _, err := anon.AgentAuth.SignUp(ctx, &chronary.AgentSignUpParams{
+		Email: "a@example.com", AgentName: "Bot", TosVersion: "2026-04-01", HeardAbout: "A search",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := anon.AgentAuth.SignUp(ctx, &chronary.AgentSignUpParams{
+		Email: "b@example.com", AgentName: "Bot", TosVersion: "2026-04-01",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := bodies[0]["heard_about"]; got != "A search" {
+		t.Errorf("heard_about = %v, want %q", got, "A search")
+	}
+	if _, ok := bodies[1]["heard_about"]; ok {
+		t.Errorf("heard_about sent when empty: %v", bodies[1])
+	}
+}
+
+func TestAgentAuthSignUp_HeardAboutCutTo200Runes(t *testing.T) {
+	var sent string
+	_, srv := testutil.Setup(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		sent, _ = body["heard_about"].(string)
+		testutil.RespondJSON(w, 200, map[string]interface{}{"message": "ok"})
+	}))
+	anon, err := chronary.NewClient(chronary.WithAnonymous(), chronary.WithBaseURL(srv.URL), chronary.WithMaxRetries(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	long := strings.Repeat("a", 199) + "\U0001F4C5" + strings.Repeat("b", 100)
+	params := &chronary.AgentSignUpParams{Email: "a@example.com", AgentName: "Bot", TosVersion: "v", HeardAbout: long}
+	if _, err := anon.AgentAuth.SignUp(context.Background(), params); err != nil {
+		t.Fatal(err)
+	}
+	if want := strings.Repeat("a", 199) + "\U0001F4C5"; sent != want {
+		t.Errorf("heard_about = %q (%d runes), want %d runes", sent, len([]rune(sent)), len([]rune(want)))
+	}
+	if params.HeardAbout != long {
+		t.Error("SignUp changed the caller's params")
 	}
 }
 
